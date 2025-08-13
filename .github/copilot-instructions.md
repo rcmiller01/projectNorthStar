@@ -1,144 +1,162 @@
 # Copilot Custom Instructions for projectNorthStar
+# Golden Rules — Project Operating Guide (All Repos)
 
-These instructions are auto-loaded to guide AI assistance in this repository.
-Update as the project evolves.
-
----
-## 1. Project Snapshot
-**Status:** Early initialization (scaffold only).  
-**Primary Goal (placeholder):** Define and build the core system for Project North Star (specify domain: e.g. data platform, ML service, app backend, etc.).  
-**Stack (planned):** (Add languages/frameworks here — e.g. Python 3.12 + FastAPI + PostgreSQL).  
-**Open Questions:** Architecture, domain model, deployment target, CI requirements.
-
-> ACTION: Replace placeholders once decisions are made.
+> Purpose: a generic, non‑secret operating manual for every codebase we build. No domain specifics; safe to publish. Use this to keep behavior consistent across VS Code, local agents, and chat assistants.
 
 ---
-## 2. Assistant Guidance Principles
-1. Be explicit about assumptions; prefer 1–2 lightweight assumptions over blocking.  
-2. Ask only when a decision materially affects architecture or irreversible work.  
-3. Prefer incremental, testable changes.  
-4. Surface edge cases early (performance, concurrency, failure modes, security).  
-5. Favor clarity over cleverness; minimize hidden magic.
+
+## 1) Modes of Operation
+
+### Planner Mode (default before significant work)
+
+* Trigger when a task is new, ambiguous, cross‑cutting, or risky.
+* Assistant **must ask 4–6 clarifying questions** focused on inputs, outputs, constraints, risks, and definitions of done.
+* Produce a **plan** with:
+
+  * Objectives & acceptance criteria
+  * Deliverables & file touch‑list
+  * Budget (time/token/memory/IO) & stop conditions
+  * Tooling/models to use; fallbacks/escalation
+  * Test/verification approach
+* **Announce when the plan is complete**, summarize intended actions, and **state the next action**.
+
+### Execute Mode
+
+* Work strictly against the plan. Keep changes scoped to the declared files.
+* Small, atomic commits; pass linters/tests locally before PR.
+* On budget breach or repeated verifier failure, **escalate per plan**, or return to Planner Mode.
+
+### Reflect Mode (post‑work)
+
+* Add a short **Post‑Code Reflection** to the PR or change log:
+
+  * What changed and why
+  * What surprised us
+  * Risks introduced / tech debt created
+  * Next sensible improvement
 
 ---
-## 3. Code Style & Quality
-| Area | Guidance (edit as needed) |
-|------|---------------------------|
-| Python Version | 3.12 (confirm) |
-| Formatting | `ruff format` or `black` (choose one; default: ruff format) |
-| Linting | `ruff` with default rules; enable complexity caps later |
-| Types | Gradual typing with `mypy --strict` target (start permissive) |
-| Tests | `pytest`, structure: `tests/` mirroring `src/` |
-| Coverage Target | Start 60%, ratchet upward to 85%+ |
-| Commits | Conventional Commits (e.g. `feat:`, `fix:`, `chore:`) |
-| Imports | Standard lib → third-party → internal (grouped, separated) |
 
-Add language/framework-specific sections once confirmed.
+## 2) Repository Structure (choose the subset you need)
 
----
-## 4. Branch & Workflow (Draft)
-- `main` stays green; no direct force-push.  
-- Feature branches: `feat/<short-scope>`, fixes: `fix/<issue|scope>`, hardening: `chore/`, experiments: `exp/`.  
-- PR checklist: Lint clean, tests added/updated, docs touched if needed, no TODOs left un-ticketed.
-
----
-## 5. Testing Strategy (Initial)
-| Layer | Approach |
-|-------|----------|
-| Unit | Fast, isolated, no network/disk unless faked |
-| Integration | Realistic module boundaries, ephemeral services via docker if needed |
-| Property-based (optional) | For parsers / transformations using `hypothesis` |
-| Performance (later) | Add lightweight benchmarks before optimizing |
-
----
-## 6. Security & Reliability Notes
-- Avoid storing secrets in repo; use environment variables + sample `.env.example`.  
-- Add input validation at API boundaries.  
-- Log structured JSON (no PII).  
-- Fail fast on config errors; provide actionable error messages.  
-- Plan for graceful degradation (timeouts, retries, circuit breakers) in service calls (future).
-
----
-## 7. Documentation Expectations
-- Keep `README.md` high-level (what/why/how to start).  
-- Add `docs/` for deeper architecture once stabilized.  
-- Each public module: top-of-file docstring + key function docstrings (summary, params, returns, error modes).  
-- Provide ADRs (`docs/adr/`) for major architectural decisions.
-
----
-## 8. AI Assistant Operational Rules
-When responding:
-- If the user asks for an implementation: produce full diff-ready code (no ellipses) unless they request a snippet.  
-- If context is missing: state up to two assumptions and proceed.  
-- If a feature spans multiple files: outline plan, then implement smallest vertical slice.  
-- After code edits: suggest or add minimal tests.  
-- Never introduce new dependencies without stating rationale + lighter alternatives.  
-- Provide run / test commands (PowerShell syntax on Windows) in fenced blocks labeled `powershell`.
-
-Example response skeleton for non-trivial change:
 ```
-Summary
-Plan
-Changes Applied
-Next Steps / Follow-ups
+/ (root)
+  README.md                # Quickstart; how to run/tests; support matrix
+  GOLDEN_RULES.md          # This file (keep synced across repos)
+  /src                     # Application/library code (see subfolders)
+    /core                  # Orchestration, routing, shared kernels
+    /experts               # Task-specific modules (e.g., sql_agent, code_fixer)
+    /retrieval             # Graph + vector retrieval code; chunkers/parsers
+    /verify                # Verifiers, validators, test harness runners
+    /memory                # HRM/task cache/pattern libraries (no secrets)
+    /ui                    # CLI/web or editor integrations (optional)
+  /configs                 # *.yaml/json/toml; environment-agnostic
+  /prompts                 # Prompt templates & grammars; non-secret
+  /tests                   # Unit/integration/e2e; goldens live here
+  /scripts                 # Dev/ops scripts (lint, build, release, data prep)
+  /docs                    # Architecture notes, ADRs, design diagrams
+  /examples                # Minimal runnable demos & sample inputs/outputs
+  /infra                   # IaC, Dockerfiles, compose, k8s manifests
+  /assets                  # Static assets (logos, small fixtures)
+  /data                    # Small, non-sensitive sample data only
 ```
 
----
-## 9. Performance & Observability (Future)
-Planned additions:
-- Metrics: latency, error rates per component.  
-- Tracing: OpenTelemetry (if microservices emerge).  
-- Structured logging fields: `timestamp, level, component, event, correlation_id`.
+**Root vs. subfolders**
+
+* **Root** holds repo meta (README, this guide, licensing, high-level configs).
+* **/src** contains all executable logic; avoid free‑floating modules at root.
+* **/configs** are environment‑agnostic; put secrets in your platform’s secret store, not the repo.
 
 ---
-## 10. Roadmap Placeholder
-| Phase | Goal | Notes |
-|-------|------|-------|
-| 0 | Foundational scaffold | Current step |
-| 1 | Core domain model | Define entities & persistence |
-| 2 | API layer / service integration | Framework TBD |
-| 3 | Observability & hardening | Metrics, tracing, scaling |
-| 4 | Optimization & polish | Performance passes |
+
+## 3) File, Function, and Module Limits
+
+* **Files**: soft limit **≤ 400 lines**, hard **≤ 800**. Split into modules when exceeded.
+* **Functions/methods**: soft **≤ 30 lines**, hard **≤ 60**. Aim for **cyclomatic complexity ≤ 10**; extract helpers when above.
+* **Public APIs**: favor small, pure functions; avoid hidden mutable globals; document inputs/outputs with types.
+* **Docs**: first‑line summary ≤ 72 chars; include examples for non‑obvious behavior.
 
 ---
-## 11. Open Decision Log (fill in)
-| Decision | Status | Owner | Date | Follow-up |
-|----------|--------|-------|------|-----------|
-| Python vs alt stack | Pending |  |  |  |
-| Packaging tool | Pending |  |  |  |
-| DB selection | Pending |  |  |  |
 
----
-## 12. Quick Start (To Be Updated)
-```powershell
-# Create and activate virtual environment (adjust once stack chosen)
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -e .
-pytest -q
+## 4) Budgets & Efficiency (enforced)
+
+* Track and respect budgets per task:
+
+  * **time\_s** (wall time), **tokens** (LLM), **memory\_mb**, **io\_mb**, **cost\_usd** (if applicable)
+* Store defaults in `configs/budget.yaml`; override in task plans.
+* On approaching 90% of any budget, assistants must **pause, summarize progress, propose options** (stop, optimize, or escalate).
+
+**Example `configs/budget.yaml`**
+
+```yaml
+defaults:
+  time_s: 180
+  tokens: 16000
+  memory_mb: 4096
+  io_mb: 256
+  cost_usd: 0.25
+policy:
+  warn_at: 0.9
+  hard_stop: true
 ```
 
 ---
-## 13. How to Update This File
-- Keep sections short; archive obsolete decisions into `docs/adr/`.
-- Update roadmap table as phases advance.
-- Remove placeholders once values are real.
+
+## 5) Retrieval & Context (generic)
+
+* Prefer **graph/structural retrieval** (relations, schemas, call graphs) first; blend **vector + keyword** when recall is thin.
+* Cite sources/paths in outputs (file paths, table/column names, node IDs).
+* Keep context packs **small and relevant**; avoid dumping entire files or schemas when a snippet suffices.
 
 ---
-## 14. Assistant Self-Check Before Large Changes
-Before proposing big refactors, confirm:
-1. Problem statement restated.
-2. Risk / rollback path noted.
-3. Test impact identified.
-4. Performance or security implications addressed.
+
+## 6) Verification & Testing
+
+* Every change must have **verification**:
+
+  * Unit tests for new logic; regression tests for fixed bugs
+  * Schema/contract checks for data and APIs
+  * Deterministic outputs for goldens where feasible
+* CI gates: lint → type‑check → unit → integration (fast) → optional e2e (slow)
+* Artifacts to attach in PRs: diffs, test logs, verification summary, any generated assets.
 
 ---
-## 15. Minimal Glossary (expand)
-| Term | Meaning |
-|------|---------|
-| ADR | Architecture Decision Record |
-| SLO | Service Level Objective |
-| DRY | Don't Repeat Yourself |
+
+## 7) Commits, Branching, and PRs
+
+* **Conventional Commits**: `type(scope): summary` (e.g., `feat(sql): add safe top-k join`)
+* Branch model: `feature/<slug>`, `fix/<slug>`, `chore/<slug>`
+* PR checklist:
+
+  * [ ] Plan included or linked
+  * [ ] Tests updated/passing; coverage not down materially
+  * [ ] Budget respected; metrics attached
+  * [ ] Post‑Code Reflection added (see template)
 
 ---
-*Last updated: initial version.*
+
+## 8) Post‑Code Reflection (template)
+
+```
+### Reflection
+- Why: <problem + constraints>
+- What changed: <modules/files>
+- Verification: <tests/checks run>
+- Risks/Tradeoffs: <perf, debt, portability>
+- Next action: <bite‑sized follow‑up>
+```
+
+---
+
+## 9) Planner Mode — Protocol (for VS Code & chat assistants)
+
+1. Detect need → ask **4–6 clarifying questions** (inputs, outputs, constraints, risks, DoD).
+2. Draft plan with: goals, acceptance criteria, file touch‑list, budgets, tools/models, verification, risks & rollbacks.
+3. **Announce plan complete** → summarize actions → **state the next action** and await confirmation (unless pre‑authorized).
+4. During execution: surface blockers early; propose alternatives within budget; switch back to Planner Mode on scope creep.
+
+---
+
+## 10) Don’ts
+
+* Don’t commit secrets, tokens,
