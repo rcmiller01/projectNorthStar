@@ -1,37 +1,4 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-
-# Virtual environments
-.venv/
-venv/
-ENV/
-
-# Distribution / build
-build/
-dist/
-*.egg-info/
-.eggs/
-
-# IDE
-.vscode/
-.idea/
-
-# Logs
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage / test
-.coverage*
-htmlcov/
-.pytest_cache/
-
-# Environment / secrets
+out/
 .env
-*.secret.json
-service_account*.json
+__pycache__/
+.ipynb_checkpoints/
