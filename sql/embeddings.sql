@@ -1,10 +1,14 @@
--- Example embedding generation (parameterized)
--- Variables to substitute client-side: ${PROJECT_ID}, ${DATASET}, ${SOURCE_TABLE}, ${TARGET_TABLE}, ${TEXT_COLUMN}
--- NOTE: In real execution ensure TARGET_TABLE exists or use CREATE TABLE AS SELECT.
+-- Phase 0 Embedding Generation
+-- Variables: ${PROJECT_ID}, ${DATASET}, ${EMBED_MODEL}, ${SOURCE_TABLE}
+-- Output table: `${PROJECT_ID}.${DATASET}.demo_texts_emb`
 
-INSERT INTO `${PROJECT_ID}.${DATASET}.${TARGET_TABLE}` (id, embedding)
+CREATE OR REPLACE TABLE `${PROJECT_ID}.${DATASET}.demo_texts_emb` AS
 SELECT
   id,
-  ML.GENERATE_EMBEDDING(MODEL `${PROJECT_ID}.${DATASET}.embedding_model`, ${TEXT_COLUMN}) AS embedding
+  text,
+  ML.GENERATE_EMBEDDING(
+    MODEL `${PROJECT_ID}.${DATASET}.${EMBED_MODEL}`,
+    text
+  ) AS embedding
 FROM `${PROJECT_ID}.${DATASET}.${SOURCE_TABLE}`
-WHERE ${TEXT_COLUMN} IS NOT NULL;
+WHERE text IS NOT NULL;

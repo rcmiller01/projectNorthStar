@@ -1,4 +1,8 @@
-"""CLI entrypoint for contest scaffold."""
+"""CLI entrypoint for contest scaffold.
+
+Copyright (c) 2025 Team NorthStar
+Licensed under the MIT License. See LICENSE file for details.
+"""
 from __future__ import annotations
 import argparse
 from pathlib import Path

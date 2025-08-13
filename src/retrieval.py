@@ -1,4 +1,8 @@
-"""Retrieval logic (hybrid lexical + vector placeholder)."""
+"""Retrieval logic (hybrid lexical + vector placeholder).
+
+Copyright (c) 2025 Team NorthStar
+Licensed under the MIT License. See LICENSE file for details.
+"""
 from __future__ import annotations
 from typing import Any, Iterable
 from .bigquery_client import BigQueryClient

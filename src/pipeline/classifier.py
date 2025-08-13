@@ -13,6 +13,8 @@ Edge cases to consider later:
 - empty text
 - very long text (truncate)
 - unsupported language
+Copyright (c) 2025 Team NorthStar
+Licensed under the MIT License. See LICENSE file for details.
 """
 from __future__ import annotations
 from dataclasses import dataclass

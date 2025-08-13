@@ -30,3 +30,8 @@ Thumbs.db
 .coverage*
 htmlcov/
 .pytest_cache/
+
+# Environment / secrets
+.env
+*.secret.json
+service_account*.json

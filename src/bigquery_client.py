@@ -1,6 +1,9 @@
 """Public-facing BigQuery AI client (contest version).
 
 Minimal surface mirroring internal core client but without private logic.
+
+Copyright (c) 2025 Team NorthStar
+Licensed under the MIT License. See LICENSE file for details.
 """
 from __future__ import annotations
 from dataclasses import dataclass
