@@ -538,3 +538,59 @@ Environment variable `EMBED_BATCH_LIMIT` controls per-batch size (default 10000,
 
 ---
 Generated initial commit scaffold.
+
+## Release Process
+
+Automated helper scripts + Make targets streamline versioned releases (SemVer).
+
+Dry run (compute next version only):
+```
+make release-dry-run part=patch
+```
+
+Full release (updates version, changelog, commit + tag):
+```
+make release part=minor
+```
+
+Workflow:
+1. Clean working tree enforced
+2. Determine new version from `part=` (major|minor|patch)
+3. Generate grouped changelog from commits since last tag
+4. Update `pyproject.toml` + prepend `CHANGELOG.md`
+5. Commit `chore(release): vX.Y.Z` and create git tag `vX.Y.Z`
+
+Push after review:
+```
+git push origin main --tags
+```
+
+## Secret & Public Sweeps
+
+Secret scan (regex + entropy) locally:
+```
+make sweep-secrets
+```
+Strict mode:
+```
+make sweep-secrets-strict
+```
+Allowlist file: `secrets_allowlist.txt` (exact matches only).
+
+Public artifact sweep (large files, notebook outputs, internal URLs, cred file patterns):
+```
+make public-sweep
+```
+
+Both run in CI (see `secret_scan.yml` + `public_sweep` job in `ci.yml`). Findings summarized in PR checks.
+
+Pre-commit hooks: `secret-sweep` (medium threshold) and `nbstripout` (removes notebook outputs on commit).
+
+## Maintenance Checklist (Before Release)
+1. `make check` passes
+2. `make sweep-secrets` clean (or intentional allowlist rationale documented)
+3. `make public-sweep` clean
+4. CI eval metrics within thresholds
+5. Docs updated for new flags/models
+6. `make release-dry-run part=patch` sanity check
+7. `make release part=patch` then push tag

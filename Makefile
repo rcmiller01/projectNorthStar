@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release
 
 fmt:
 	ruff --fix .
@@ -88,3 +88,20 @@ eval-ci:
 	python scripts/gen_eval_set.py
 	python scripts/run_eval.py --top-k 5 --output metrics/eval_results.json --use-stub
 	python scripts/metrics_trend.py
+
+sweep-secrets:
+	python scripts/secret_sweep.py
+
+sweep-secrets-strict:
+	python scripts/secret_sweep.py --fail-on=MED
+
+public-sweep:
+	python scripts/public_sweep.py
+
+release-dry-run:
+	@[ -n "$$RELEASE_VERSION" ] || echo "(optional) set RELEASE_VERSION=x.y.z";
+	DRY_RUN=1 python scripts/release.py
+
+release:
+	@[ -n "$$RELEASE_VERSION" ] || (echo "Set RELEASE_VERSION=x.y.z"; exit 2)
+	python scripts/release.py
