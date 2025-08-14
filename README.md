@@ -3,6 +3,40 @@
 AI-assisted triage & knowledge retrieval over BigQuery (embeddings + vector search + playbook verification). Minimal, idempotent, reproducible.
 
 ## Quickstart (5 steps)
+1) Set env (PROJECT_ID, DATASET, LOCATION; enable real BigQuery):
+```bash
+export PROJECT_ID=bq_project_northstar
+export DATASET=demo_ai
+export LOCATION=US
+export BIGQUERY_REAL=1
+```
+
+2) Install (all extras for full experience):
+```bash
+pip install -e .[bigquery,ingest,dashboard,dev]
+```
+
+3) Create remote models (idempotent) and views:
+```bash
+make create-remote-models
+make create-views
+```
+
+4) Ingest samples and embed:
+```bash
+python -m core.cli ingest --path samples --type auto --max-tokens 512 --refresh-loop
+```
+
+5) Triage (freeform or seeded ticket):
+```bash
+python -m core.cli triage --title "500 after reset" --body "android camera" --severity P1 --out out/quickstart_plan.md
+# or a seeded ticket (demo script seeds DEMO-1)
+python -m core.cli triage --ticket-id DEMO-1 --severity P1 --out out/quickstart_ticket.md
+```
+
+PowerShell: use `$env:VAR="..."` for envs.
+
+## Quickstart (5 steps)
 1. Set env (replace if desired):
 	```bash
 	export PROJECT_ID=bq_project_northstar
@@ -256,6 +290,11 @@ UI sections (row caps applied):
 - Severity trends (weekly area chart)
 - Potential duplicate clusters (expanders with sample members)
 
+Placeholder screenshot (replace `docs/dashboard.png` once captured):
+```
+![Dashboard Overview](docs/dashboard.png)
+```
+
 PII safety: snippets truncated to 200 chars + basic masking (emails, bearer tokens, AWS access keys). No writes or full meta exposure.
 
 ## Quick Demo (end-to-end)
@@ -372,6 +411,14 @@ masked in UI. Keep attachments non-PII in demos; prefer synthetic samples. Use
 CI archives eval metrics and shows trend deltas on each PR. Threshold env vars:
 `MIN_HIT_RATE`, `MAX_MIN_DIST`, `MIN_VERIFIER` guard regressions. See
 `scripts/metrics_trend.py` and the `eval-ci` Make target.
+
+## License
+
+Project is released under the MIT License. See `LICENSE`.
+
+## Public Datasets
+
+Sample paths and BigQuery public data used for demonstration (e.g., cloud-samples-data and BigQuery Public Datasets) are for evaluation only. Remove or replace with your own data in production.
 
 ## License
 
