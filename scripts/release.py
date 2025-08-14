@@ -82,14 +82,23 @@ def main(argv=None) -> int:
         action='store_true',
         help='Skip file changes & tagging',
     )
+    p.add_argument(
+        '--version',
+        help=(
+            'Explicit semantic version (overrides --part and '
+            'RELEASE_VERSION env)'
+        ),
+    )
     args = p.parse_args(argv)
 
     ensure_clean()
     current = get_current_version()
 
-    forced = os.environ.get('RELEASE_VERSION')
-    if forced:
-        new_version = forced.strip()
+    forced_env = os.environ.get('RELEASE_VERSION')
+    if args.version:
+        new_version = args.version.strip()
+    elif forced_env:
+        new_version = forced_env.strip()
     else:
         new_version = bump(current, args.part)
 
