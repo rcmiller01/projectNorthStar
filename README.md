@@ -74,6 +74,60 @@ make eval
 cat metrics/eval_results.json | jq .aggregate
 ```
 
+## External Quickstart (tagged release)
+
+Use this if you just want to try the released package without cloning everything first.
+
+### Install from tag
+```bash
+pip install "git+https://github.com/rcmiller01/projectNorthStar@v1.0.0"
+```
+
+For full features (CLI, dashboard, ingest), clone the repo and install extras:
+```bash
+git clone https://github.com/rcmiller01/projectNorthStar
+cd projectNorthStar
+pip install -e .[bigquery,ingest,dashboard,dev]
+```
+
+### Configure env
+```bash
+export PROJECT_ID=<your-gcp-project>
+export DATASET=demo_ai
+export LOCATION=US
+export BIGQUERY_REAL=1   # use real BigQuery client
+```
+PowerShell uses `$env:VAR="..."` syntax.
+
+### One‑time setup (idempotent)
+```bash
+make create-remote-models
+make create-views
+```
+
+### Ingest & triage
+```bash
+python -m core.cli ingest --path samples --type auto --max-tokens 512 --refresh-loop
+python -m core.cli triage --title "login 500 after reset" --body "android camera" --severity P1 --out out/plan.md
+```
+
+### Dashboard (read‑only analytics over views)
+```bash
+pip install -e .[dashboard]
+make dashboard
+```
+
+### Demo & Eval
+```bash
+make demo
+make eval
+```
+
+Safety: surfaced text is truncated (≤200 chars) and obvious secret patterns masked. Use synthetic / non-sensitive data for demos.
+
+---
+
+
 ## Data & Safety
 Sample files in `samples/` are synthetic / minimal. No PII shipped. Snippets surfaced are truncated (≤200 chars) and basic masking (emails, bearer tokens, AWS access keys) applies in dashboard & playbooks. Attach only non-sensitive data when experimenting.
 
