@@ -185,6 +185,43 @@ $env:FORCE = "1"; make destroy-remote-models
 - Configure tooling (linting, tests, CI)
 - Document setup and usage
 
+## Dashboard (read-only)
+
+Lightweight analytics (Phase 5) built with Streamlit over BigQuery views.
+
+Install (add streamlit):
+```
+pip install -e .[bigquery]
+pip install streamlit -q
+```
+
+Run (PowerShell example):
+```
+set BIGQUERY_REAL=1
+set PROJECT_ID=bq_project_northstar
+set DATASET=demo_ai
+set LOCATION=US
+make dashboard
+```
+
+Or offline stub (empty data but UI renders):
+```
+make dashboard
+```
+
+Views created (idempotent) inside your dataset:
+- view_common_issues: naive fingerprint aggregation (first 8 normalized words)
+- view_issues_by_severity: weekly counts by normalized severity (P0–P3, Unknown)
+- view_duplicate_chunks: approximate duplicate clusters via ML.VECTOR_SEARCH
+
+UI sections (row caps applied):
+- Top common issues (snippet ≤200 chars, counts, last seen)
+- Severity trends (weekly area chart)
+- Potential duplicate clusters (expanders with sample members)
+
+PII safety: snippets truncated to 200 chars + basic masking (emails, bearer tokens, AWS access keys). No writes or full meta exposure.
+
+
 ## Multimodal Ingest (Phase 3)
 
 Install ingest extras (OCR + image support):

@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard
 
 fmt:
 	ruff --fix .
@@ -50,3 +50,6 @@ ingest-samples:
 
 refresh-all:
 	python scripts/refresh_all.py
+
+dashboard:
+	streamlit run src/dashboard/app.py
