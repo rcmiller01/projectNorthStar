@@ -4,4 +4,8 @@ metrics/
 .env
 __pycache__/
 .ipynb_checkpoints/
+# virtual envs
+.venv/
+venv/
+env/
 # keep docs images (no ignore rule) so dashboard.png can be committed

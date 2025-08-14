@@ -37,6 +37,7 @@ extra = os.environ.get("SECRETS_SKIP_DIRS", "")
 SKIP_DIRS = DEFAULT_SKIP | {p.strip() for p in extra.split(',') if p.strip()}
 SKIP_FILES = {"docs/dashboard.png"}
 SCAN_OUT = ROOT / 'secret-scan.txt'
+GLOB_EXCLUDE = {".git/**/*", ".git/*", ".git"}
 
 RULES: List[Tuple[str, str, str]] = [
     ("HIGH", "AWS Access Key", r"AKIA[0-9A-Z]{16}"),
