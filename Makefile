@@ -99,9 +99,9 @@ public-sweep:
 	python scripts/public_sweep.py
 
 release-dry-run:
-	@[ -n "$$RELEASE_VERSION" ] || echo "(optional) set RELEASE_VERSION=x.y.z";
-	DRY_RUN=1 python scripts/release.py
+	@[ -n "$$RELEASE_VERSION" ] || echo "(optional) RELEASE_VERSION not set; will bump patch" 1>&2 || true
+	DRY_RUN=1 python scripts/release.py --part $${PART:-patch} --dry-run
 
 release:
-	@[ -n "$$RELEASE_VERSION" ] || (echo "Set RELEASE_VERSION=x.y.z"; exit 2)
-	python scripts/release.py
+	@[ -n "$$RELEASE_VERSION" ] || echo "(no RELEASE_VERSION provided; bumping $$PART or patch)" 1>&2
+	python scripts/release.py --part $${PART:-patch}

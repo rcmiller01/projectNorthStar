@@ -22,13 +22,21 @@ import argparse
 import json
 import math
 import re
+import os
 from pathlib import Path
 from typing import Iterable, List, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 ALLOWLIST_FILE = ROOT / "secrets_allowlist.txt"
-SKIP_DIRS = {".git", "__pycache__", "node_modules", "out", "metrics", "docs"}
+DEFAULT_SKIP = {
+    ".git", ".venv", "venv", "env", "__pycache__", ".pytest_cache",
+    ".mypy_cache", "node_modules", ".ruff_cache", ".idea", ".vscode",
+    ".DS_Store", "out", "metrics", "build", "dist", "docs"
+}
+extra = os.environ.get("SECRETS_SKIP_DIRS", "")
+SKIP_DIRS = DEFAULT_SKIP | {p.strip() for p in extra.split(',') if p.strip()}
 SKIP_FILES = {"docs/dashboard.png"}
+SCAN_OUT = ROOT / 'secret-scan.txt'
 
 RULES: List[Tuple[str, str, str]] = [
     ("HIGH", "AWS Access Key", r"AKIA[0-9A-Z]{16}"),
@@ -59,12 +67,14 @@ RULES: List[Tuple[str, str, str]] = [
 ENTROPY_THRESHOLD = 4.2  # shannon bits/char for medium length tokens
 ENTROPY_MIN_LEN = 20
 
+
 def shannon_entropy(s: str) -> float:
     if not s:
         return 0.0
     freq = {ch: s.count(ch) for ch in set(s)}
     length = len(s)
     return -sum((c/length) * math.log2(c/length) for c in freq.values())
+
 
 def load_allowlist():
     regexes: List[re.Pattern] = []
@@ -86,22 +96,22 @@ def load_allowlist():
             paths.add(p)
     return regexes, paths
 
-def iter_files() -> Iterable[Path]:
-    for p in ROOT.rglob('*'):
-        if p.is_dir():
-            if p.name in SKIP_DIRS:
+
+def iter_files(start: Path = ROOT) -> Iterable[Path]:
+    for root, dirs, files in os.walk(start):
+        # prune skip dirs in-place
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for f in files:
+            p = Path(root) / f
+            rel = p.relative_to(start).as_posix()
+            if rel in SKIP_FILES:
                 continue
-            if any(part.startswith('venv') for part in p.parts):
+            if p.suffix.lower() in {
+                '.png', '.jpg', '.jpeg', '.gif', '.ico', '.exe', '.dll'
+            }:
                 continue
-            continue
-        rel = p.relative_to(ROOT)
-        if str(rel).replace('\\', '/') in SKIP_FILES:
-            continue
-        if p.suffix.lower() in {
-            '.png', '.jpg', '.jpeg', '.gif', '.ico', '.exe', '.dll'
-        }:
-            continue
-        yield p
+            yield p
+
 
 def scan_file(path: Path) -> List[dict]:
     out: List[dict] = []
@@ -135,6 +145,7 @@ def scan_file(path: Path) -> List[dict]:
                 })
     return out
 
+
 def apply_allowlist(findings: List[dict], regexes, paths) -> List[dict]:
     filtered = []
     for f in findings:
@@ -144,6 +155,7 @@ def apply_allowlist(findings: List[dict], regexes, paths) -> List[dict]:
             continue
         filtered.append(f)
     return filtered
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
@@ -155,23 +167,35 @@ def main(argv=None) -> int:
     for file_path in iter_files():
         all_findings.extend(scan_file(file_path))
     findings = apply_allowlist(all_findings, regex_allow, path_allow)
+    output_lines = []
+    if not findings:
+        output_lines.append('[secret-sweep] no findings')
+    else:
+        header = 'severity | file:line | rule | snippet'
+        output_lines.append(header)
+        output_lines.append('-' * len(header))
+        for finding in findings:
+            seg1 = (
+                f"{finding['severity']:6} | "
+                f"{finding['file']}:{finding['line']} |"
+            )
+            seg2 = f" {finding['rule']} | {finding['snippet']}"
+            output_lines.append(seg1 + seg2)
+    # stdout formatting
     if args.json:
         print(json.dumps(findings, indent=2))
     else:
-        if not findings:
-            print('[secret-sweep] no findings')
-        else:
-            print('severity | file:line | rule | snippet')
-            print('---------|----------|------|--------')
-            for finding in findings:
-                print(
-                    f"{finding['severity']:6} | {finding['file']}:{finding['line']} | "
-                    f"{finding['rule']} | {finding['snippet']}"
-                )
+        print('\n'.join(output_lines))
+    # always write plain text table for CI artifact
+    try:
+        SCAN_OUT.write_text('\n'.join(output_lines) + '\n', encoding='utf-8')
+    except Exception:
+        pass
     sev_order = {'HIGH': 2, 'MED': 1, 'LOW': 0}
     threshold = sev_order[args.fail_on]
     worst = max((sev_order[f['severity']] for f in findings), default=-1)
     return 1 if worst >= threshold and findings else 0
+
 
 if __name__ == '__main__':  # pragma: no cover
     raise SystemExit(main())

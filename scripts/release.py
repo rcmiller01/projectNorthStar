@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -72,19 +73,30 @@ def build_tag(version: str) -> str:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Release helper')
     p.add_argument(
-        'part',
+        '--part',
         choices=['major', 'minor', 'patch'],
-        help='SemVer part to bump',
+        default='patch',
     )
-    p.add_argument('--dry-run', action='store_true')
+    p.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Skip file changes & tagging',
+    )
     args = p.parse_args(argv)
 
     ensure_clean()
     current = get_current_version()
-    new_version = bump(current, args.part)
+
+    forced = os.environ.get('RELEASE_VERSION')
+    if forced:
+        new_version = forced.strip()
+    else:
+        new_version = bump(current, args.part)
+
     print(f'Current version: {current} -> {new_version}')
 
-    if args.dry_run:
+    dry_env = os.environ.get('DRY_RUN', '') == '1'
+    if args.dry_run or dry_env:
         print('[dry-run] skipping file modifications')
         return 0
 

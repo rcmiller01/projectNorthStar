@@ -51,11 +51,15 @@ def scan_large(tracked):
 
 
 def scan_notebooks(tracked):
+    """Return notebooks that appear to contain sizable outputs.
+
+    Heuristics: very long text lines or any image/* data blobs.
+    """
     try:
-    import nbformat  # type: ignore  # optional
-    except ImportError:
-        return []  # skip if not installed
-    noisy = []
+        import nbformat  # type: ignore
+    except Exception:
+        return []
+    suspects = []
     for p in tracked:
         if p.suffix != '.ipynb':
             continue
@@ -66,17 +70,17 @@ def scan_notebooks(tracked):
         for cell in nb.get('cells', []):
             if cell.get('cell_type') != 'code':
                 continue
-            outputs = cell.get('outputs', [])
-            for out in outputs:
-                if 'data' in out:
-                    data = out['data']
-                    if any(k.startswith('image/') for k in data.keys()):
-                        noisy.append(p.relative_to(ROOT).as_posix())
-                        break
-                if 'text' in out and len(out['text']) > 500:
-                    noisy.append(p.relative_to(ROOT).as_posix())
+            for out in cell.get('outputs', []):
+                if 'text' in out and any(
+                    len(line) > 2000 for line in out['text']
+                ):
+                    suspects.append(p.relative_to(ROOT).as_posix())
                     break
-    return list(sorted(set(noisy)))
+                data = out.get('data', {})
+                if any(k.startswith('image/') for k in data.keys()):
+                    suspects.append(p.relative_to(ROOT).as_posix())
+                    break
+    return sorted(set(suspects))
 
 
 def scan_creds(tracked):
