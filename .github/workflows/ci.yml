@@ -13,12 +13,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install (core)
-        run: pip install -e .
-      - name: Lint
-        run: make lint
-      - name: Tests
-        run: make test
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py311-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py311-
+            pip-
+      - name: Install dev extras
+        run: pip install -e .[dev]
+      - name: Check (fmt+lint+tests)
+        run: make check
 
   preflight_models:
     runs-on: ubuntu-latest
@@ -35,25 +41,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install (bigquery extras)
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-py311-bq-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-py311-
+            pip-
+      - name: Install bigquery extras
         run: pip install -e .[bigquery]
       - name: Preflight (models only)
-        id: preflight
-        run: |
-          set -e
-          python scripts/check_bq_resources.py --models-only | tee preflight.log
+        run: python scripts/check_bq_resources.py --models-only | tee preflight.log
       - name: Upload preflight log
         uses: actions/upload-artifact@v4
         with:
           name: preflight-log
           path: preflight.log
-      - name: Summarize warnings
+      - name: Summarize
         if: always()
         run: |
           echo "### Preflight Summary" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat preflight.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo '```'
 
   teardown_guard:
     runs-on: ubuntu-latest

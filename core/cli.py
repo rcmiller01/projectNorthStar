@@ -101,6 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
     ing.add_argument(
         "--max-tokens", type=int, default=512, help="Chunk max tokens"
     )
+    ing.add_argument(
+        "--refresh-loop",
+        action="store_true",
+        help="Loop embedding refresh until no new rows inserted",
+    )
     ing.set_defaults(func=cmd_ingest)
     return p
 
@@ -159,14 +164,16 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         )
     docs_effective = upsert_documents(client, all_docs)
     chunks_effective = upsert_chunks(client, all_chunks)
-    embedded = refresh_embeddings(client)
+    emb_stats = refresh_embeddings(client, loop=getattr(args, "refresh_loop", False))
     msg = (
-        "DocsEff:{d} ChunksEff:{c} NewEmbeddings:{e} "
+        "DocsEff:{d} ChunksEff:{c} Embeddings(batches={b} total={t} last={lb}) "
         "(total_docs={td} total_chunks={tc})"
     ).format(
         d=docs_effective,
         c=chunks_effective,
-        e=embedded,
+        b=emb_stats.get("batches"),
+        t=emb_stats.get("total_inserted"),
+        lb=emb_stats.get("last_batch"),
         td=len(all_docs),
         tc=len(all_chunks),
     )

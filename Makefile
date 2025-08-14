@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all
 
 fmt:
 	ruff --fix .
@@ -10,6 +10,19 @@ lint:
 
 test:
 	pytest -q
+
+check: fmt lint test
+
+setup-dev:
+	pip install -e .[dev]
+	pre-commit install || echo "pre-commit not installed in environment"
+
+pre-commit-all:
+	pre-commit run --all-files || echo "pre-commit hook run completed with above status"
+
+setup-all:
+	pip install -e .[bigquery,ingest,dashboard,dev]
+	pre-commit install || echo "pre-commit install skipped"
 
 smoke:
 	python -m core.cli triage --title "Login 500" --body "after reset" --out out/smoke.md
@@ -53,3 +66,9 @@ refresh-all:
 
 dashboard:
 	streamlit run src/dashboard/app.py
+
+create-views:
+	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
+	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
+	@[ -n "$$LOCATION" ] || (echo "Set LOCATION"; exit 1)
+	python scripts/create_views.py

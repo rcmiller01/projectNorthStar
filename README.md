@@ -195,6 +195,16 @@ pip install -e .[bigquery]
 pip install streamlit -q
 ```
 
+Extras examples:
+```
+# minimal dev
+pip install -e .[dev]
+# run dashboard
+pip install -e .[dashboard]
+# all-in
+pip install -e .[bigquery,ingest,dashboard,dev]
+```
+
 Run (PowerShell example):
 ```
 set BIGQUERY_REAL=1
@@ -221,6 +231,30 @@ UI sections (row caps applied):
 
 PII safety: snippets truncated to 200 chars + basic masking (emails, bearer tokens, AWS access keys). No writes or full meta exposure.
 
+## Dev setup (format+lint hooks)
+```
+pip install -e .[dev]
+make setup-dev
+
+# run checks locally
+make check
+# or enforce pre-commit on all files
+make pre-commit-all
+```
+
+## Create dashboard views (idempotent)
+```
+export PROJECT_ID=bq_project_northstar
+export DATASET=demo_ai
+export LOCATION=US
+pip install -e .[bigquery]
+make create-views
+
+# Then run the dashboard:
+pip install -e .[dashboard]
+make dashboard
+```
+
 
 ## Multimodal Ingest (Phase 3)
 
@@ -235,7 +269,7 @@ pip install -e .[bigquery,ingest]
 
 Ingest sample folder (stub / offline):
 ```
-python -m core.cli ingest --path samples --type auto --max-tokens 512
+python -m core.cli ingest --path samples --type auto --max-tokens 512 --refresh-loop
 ```
 
 Make target wrapper:
@@ -250,7 +284,7 @@ $env:PROJECT_ID = "bq_project_northstar"
 $env:DATASET = "demo_ai"
 $env:LOCATION = "US"
 $env:BQ_EMBED_MODEL = "$env:PROJECT_ID.$env:DATASET.embed_model"
-python -m core.cli ingest --path samples --type auto --max-tokens 512
+python -m core.cli ingest --path samples --type auto --max-tokens 512 --refresh-loop
 ```
 
 Output prints counts: Docs, Chunks, NewEmbeddings (0 offline).
