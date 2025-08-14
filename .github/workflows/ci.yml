@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  lint_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install (core)
+        run: pip install -e .
+      - name: Lint
+        run: make lint
+      - name: Tests
+        run: make test
+
+  preflight_models:
+    runs-on: ubuntu-latest
+    needs: [ lint_test ]
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      DATASET: ${{ secrets.DATASET }}
+      LOCATION: ${{ secrets.LOCATION }}
+      BQ_EMBED_MODEL: ${{ secrets.BQ_EMBED_MODEL }}
+      BQ_GEN_MODEL: ${{ secrets.BQ_GEN_MODEL }}
+      VERTEX_REGION: ${{ secrets.VERTEX_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install (bigquery extras)
+        run: pip install -e .[bigquery]
+      - name: Preflight (models only)
+        id: preflight
+        run: |
+          set -e
+          python scripts/check_bq_resources.py --models-only | tee preflight.log
+      - name: Upload preflight log
+        uses: actions/upload-artifact@v4
+        with:
+          name: preflight-log
+          path: preflight.log
+      - name: Summarize warnings
+        if: always()
+        run: |
+          echo "### Preflight Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat preflight.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  teardown_guard:
+    runs-on: ubuntu-latest
+    if: ${{ env.FORCE == '1' }}
+    steps:
+      - name: Block teardown in CI
+        run: |
+          echo "Refusing to destroy remote models in CI. Use the manual teardown workflow." >&2
+          exit 1

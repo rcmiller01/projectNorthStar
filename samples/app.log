@@ -1,0 +1,10 @@
+2025-08-01T12:00:01Z [auth] user login success uid=123
+2025-08-01T12:00:05Z [api] GET /v1/items 200 15ms
+2025-08-01T12:00:07Z [worker] job dispatched id=abc123
+2025-08-01T12:00:09Z cache: miss key=session:123
+2025-08-01T12:00:10Z db: query select * from users where id=123
+2025-08-01T12:00:12Z [api] POST /v1/upload 500 120ms err=timeout
+2025-08-01T12:00:14Z [auth] token refresh uid=123
+2025-08-01T12:00:16Z [worker] job complete id=abc123
+2025-08-01T12:00:18Z cache: hit key=session:123
+2025-08-01T12:00:20Z metrics: flush interval=60s

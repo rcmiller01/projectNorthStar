@@ -39,7 +39,7 @@ pip install -e .[bigquery]
 
 Run offline (stub client):
 ```
-python -m core.cli triage --title "Login 500" --body "after reset" --out out/plan.md
+python -m core.cli triage --title "Login 500" --body "after reset" --severity P2 --out out/plan.md
 ```
 
 Run live (BigQuery):
@@ -101,6 +101,9 @@ bq query --location=$env:LOCATION --use_legacy_sql=false `
 	< sql\create_remote_models.sql
 ```
 
+Idempotent: Re-running `make create-remote-models` will skip any model that
+already exists and only create missing ones.
+
 After creation set (FQIDs):
 ```
 export BQ_EMBED_MODEL=${PROJECT_ID}.${DATASET}.embed_model
@@ -112,10 +115,162 @@ $env:BQ_EMBED_MODEL = "$env:PROJECT_ID.$env:DATASET.embed_model"
 $env:BQ_GEN_MODEL   = "$env:PROJECT_ID.$env:DATASET.text_model"
 ```
 
+### Teardown Remote Models
+
+When finished (to avoid lingering remote model objects) you can drop them. This is idempotent.
+
+Bash:
+```
+export PROJECT_ID=bq_project_northstar
+export DATASET=demo_ai
+export LOCATION=US
+make destroy-remote-models
+```
+
+PowerShell (Make target also works if make is installed, otherwise run manually):
+```
+$env:PROJECT_ID = "bq_project_northstar"
+$env:DATASET    = "demo_ai"
+$env:LOCATION   = "US"
+powershell -NoProfile -Command "bq query --use_legacy_sql=false \"$([IO.File]::ReadAllText('sql/drop_remote_models.sql'))\""
+```
+
+Or manually specifying FQIDs (bash):
+```
+export BQ_EMBED_MODEL=${PROJECT_ID}.${DATASET}.embed_model
+export BQ_GEN_MODEL=${PROJECT_ID}.${DATASET}.text_model
+bq query --use_legacy_sql=false "$(cat sql/drop_remote_models.sql)"
+```
+
+### Preflight (models only)
+
+Fast check that the two remote models exist (skips dataset / table checks):
+
+Bash:
+```
+export PROJECT_ID=bq_project_northstar
+export DATASET=demo_ai
+export LOCATION=US
+export BQ_EMBED_MODEL=${PROJECT_ID}.${DATASET}.embed_model
+export BQ_GEN_MODEL=${PROJECT_ID}.${DATASET}.text_model
+make preflight-models
+```
+
+PowerShell:
+```
+$env:PROJECT_ID = "bq_project_northstar"
+$env:DATASET    = "demo_ai"
+$env:LOCATION   = "US"
+$env:BQ_EMBED_MODEL = "$env:PROJECT_ID.$env:DATASET.embed_model"
+$env:BQ_GEN_MODEL   = "$env:PROJECT_ID.$env:DATASET.text_model"
+python scripts\check_bq_resources.py --models-only
+```
+
+### Safe Teardown
+
+Refuses to drop without an explicit FORCE=1 confirmation.
+
+Bash:
+```
+FORCE=1 make destroy-remote-models
+```
+
+PowerShell:
+```
+$env:FORCE = "1"; make destroy-remote-models
+```
+
 ## Next Steps
 - Add project source code
 - Configure tooling (linting, tests, CI)
 - Document setup and usage
+
+## Multimodal Ingest (Phase 3)
+
+Install ingest extras (OCR + image support):
+```
+pip install -e .[ingest]
+```
+Or with BigQuery live features:
+```
+pip install -e .[bigquery,ingest]
+```
+
+Ingest sample folder (stub / offline):
+```
+python -m core.cli ingest --path samples --type auto --max-tokens 512
+```
+
+Make target wrapper:
+```
+make ingest-samples
+```
+
+Live BigQuery embedding refresh (example PowerShell):
+```
+$env:BIGQUERY_REAL = "1"
+$env:PROJECT_ID = "bq_project_northstar"
+$env:DATASET = "demo_ai"
+$env:LOCATION = "US"
+$env:BQ_EMBED_MODEL = "$env:PROJECT_ID.$env:DATASET.embed_model"
+python -m core.cli ingest --path samples --type auto --max-tokens 512
+```
+
+Output prints counts: Docs, Chunks, NewEmbeddings (0 offline).
+
+Token / batch controls:
+- Chunk size: --max-tokens (capped internally at 4096)
+- Embedding batch limit: EMBED_BATCH_LIMIT env (default 10000, <=50000)
+
+Provenance formats rendered in References section:
+```
+log  -> bq.vector_search:log:{basename}:{line_no}
+pdf  -> bq.vector_search:pdf:{basename}:p{page}
+image_ocr -> bq.vector_search:image_ocr:{basename}:p{page}
+image -> bq.vector_search:image:{basename}
+```
+
+### Severity Flag
+
+You can annotate a ticket with an explicit severity (case-insensitive):
+
+PowerShell:
+```
+python -m core.cli triage --title "Intermittent 500" --body "after reset" --severity p1 --out out\p1.md
+```
+
+Bash:
+```
+python -m core.cli triage --title "Intermittent 500" --body "after reset" --severity P1 --out out/p1.md
+```
+
+Accepted values: P0, P1, P2, P3, High, Medium, Low, Unknown.
+
+### Multi-type Vector Filtering
+
+`chunk_vector_search` automatically supports filtering by multiple types (e.g. logs + pdf). Pass a list of types in code, or ingest mixed sources: the SQL uses an array literal and filters server-side.
+
+Example (Python):
+```
+from src.retrieval.hybrid import chunk_vector_search
+rows = chunk_vector_search(client, query_text="login failure", types=["log","pdf"])
+```
+
+### Full Embedding Refresh (Looped Batching)
+
+The refresh can now loop batches until no new rows are inserted.
+
+One-off (PowerShell):
+```
+python -c "from bq.refresh import refresh_embeddings; from bq import make_client; print(refresh_embeddings(make_client(), loop=True))"
+```
+
+Or use the helper script / make target:
+```
+make refresh-all
+```
+
+Environment variable `EMBED_BATCH_LIMIT` controls per-batch size (default 10000, max 50000).
 
 ---
 Generated initial commit scaffold.

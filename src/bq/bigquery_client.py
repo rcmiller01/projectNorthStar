@@ -28,11 +28,27 @@ class StubClient(BigQueryClientBase):
     def run_sql_template(
         self, name: str, params: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
+        # Support inline raw SQL passthrough (no-op, returns empty)
+        if "raw_sql" in params:
+            return []
         if name == "vector_search.sql":
             q = params.get("query_text", "")
             return [
                 {"id": 1, "text": f"stub snippet for: {q}", "distance": 0.05},
             ]
+        if name == "chunk_vector_search.sql":
+            q = params.get("query_text", "")
+            types = params.get("types") or []
+            base = {
+                "chunk_id": "chunk_1",
+                "text": f"chunk snippet for: {q}",
+                "distance": 0.07,
+                "meta": {
+                    "type": (types[0] if types else "pdf"),
+                    "filename": "stub.pdf",
+                },
+            }
+            return [base]
         return []
 
 
@@ -58,13 +74,21 @@ class RealClient(BigQueryClientBase):
     def run_sql_template(
         self, name: str, params: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
-        path = SQL_DIR / name
-        if not path.exists():  # pragma: no cover
-            raise FileNotFoundError(f"SQL template not found: {name}")
-        sql_src = path.read_text(encoding="utf-8")
-    # Simple replacement for scaffold; later: parameter binding.
-        sql = sql_src
+        # Raw SQL bypass
+        if "raw_sql" in params:
+            sql = params["raw_sql"]
+        else:
+            path = SQL_DIR / name
+            if not path.exists():  # pragma: no cover
+                raise FileNotFoundError(f"SQL template not found: {name}")
+            sql_src = path.read_text(encoding="utf-8")
+            sql = sql_src
         # Parameter placeholders
+        batch_limit_env = os.getenv("EMBED_BATCH_LIMIT", "10000")
+        try:
+            batch_limit = min(50000, max(1, int(batch_limit_env)))
+        except ValueError:
+            batch_limit = 10000
         replacements = {
             "${PROJECT_ID}": self.project or "",
             "${DATASET}": os.getenv("BQ_DATASET", "demo_ai"),
@@ -73,6 +97,12 @@ class RealClient(BigQueryClientBase):
             ),
             "${QUERY_TEXT}": f"'{params.get('query_text', '')}'",
             "${TOP_K}": str(params.get("top_k", 5)),
+            "${EMBED_BATCH_LIMIT}": str(batch_limit),
+            "${TYPE_ARRAY}": (
+                "[" + ",".join(f"'{t}'" for t in params.get("types", [])) + "]"
+                if params.get("types")
+                else "[]"
+            ),
         }
         for k, v in replacements.items():
             sql = sql.replace(k, v)

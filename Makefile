@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight create-remote-models
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples
 
 fmt:
 	ruff --fix .
@@ -27,21 +27,26 @@ smoke-live:
 preflight:
 	python scripts/check_bq_resources.py
 
+preflight-models:
+	python scripts/check_bq_resources.py --models-only
+
 create-remote-models:
 	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
 	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
 	@[ -n "$$LOCATION" ] || (echo "Set LOCATION (BQ dataset location)"; exit 1)
-	@[ -n "$$EMBED_ENDPOINT" ] || EMBED_ENDPOINT=text-embedding-004; : $${EMBED_ENDPOINT:=text-embedding-004}
-	@[ -n "$$TEXT_ENDPOINT" ] || TEXT_ENDPOINT=gemini-1.5-pro; : $${TEXT_ENDPOINT:=gemini-1.5-pro}
-	@[ -n "$$VERTEX_REGION" ] || VERTEX_REGION=us-central1; : $${VERTEX_REGION:=us-central1}
-	EMBED_MODEL_FQID=$${EMBED_MODEL_FQID:-$$PROJECT_ID.$$DATASET.embed_model}; \
-	TEXT_MODEL_FQID=$${TEXT_MODEL_FQID:-$$PROJECT_ID.$$DATASET.text_model}; \
-	bq query --location=$$LOCATION --use_legacy_sql=false \
-	  --parameter=embed_model_fqid:STRING:"$$EMBED_MODEL_FQID" \
-	  --parameter=embed_endpoint:STRING:"$$EMBED_ENDPOINT" \
-	  --parameter=text_model_fqid:STRING:"$$TEXT_MODEL_FQID" \
-	  --parameter=text_endpoint:STRING:"$$TEXT_ENDPOINT" \
-	  --parameter=region:STRING:"$$VERTEX_REGION" \
-	  < sql/create_remote_models.sql
-	@echo "➡  Embedding model: $$EMBED_MODEL_FQID  (endpoint=$$EMBED_ENDPOINT)"
-	@echo "➡  Text model:      $$TEXT_MODEL_FQID   (endpoint=$$TEXT_ENDPOINT)"
+	python scripts/create_remote_models.py
+
+destroy-remote-models:
+	@echo "Remote model teardown requested"
+	@if [ "$$OS" = "Windows_NT" ]; then \
+	  powershell -NoProfile -Command "if (-not $$env:FORCE -or $$env:FORCE -ne '1') { Write-Host 'Refusing to destroy without FORCE=1'; exit 2 }; $$c = Get-Content sql/drop_remote_models.sql -Raw; bq query --use_legacy_sql=false \"$$c\"; if ($$LASTEXITCODE -eq 0) { Write-Host '✅ Drop attempted (Windows)'} else { exit $$LASTEXITCODE }"; \
+	else \
+	  if [ "$$FORCE" != "1" ]; then echo "Refusing to destroy without FORCE=1"; exit 2; fi; \
+	  bq query --use_legacy_sql=false "$$(cat sql/drop_remote_models.sql)" && echo "✅ Drop attempted"; \
+	fi
+
+ingest-samples:
+	python -m core.cli ingest --path samples --type auto --max-tokens 512
+
+refresh-all:
+	python scripts/refresh_all.py

@@ -1,0 +1,28 @@
+name: Manual Teardown
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type: I understand deleting models is irreversible'
+        required: true
+        default: 'I understand deleting models is irreversible'
+
+jobs:
+  destroy_models:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'I understand deleting models is irreversible' }}
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+      DATASET: ${{ secrets.DATASET }}
+      LOCATION: ${{ secrets.LOCATION }}
+      FORCE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+            version: '>= 471.0.0'
+            export_default_credentials: true
+      - name: Destroy remote models (manual only)
+        run: make destroy-remote-models

@@ -20,6 +20,11 @@ class Orchestrator:
         query_text = ticket.get("title") or ticket.get("body") or ""
         snippets = vector_search(self._bq, query_text=query_text, k=k)
         plan_header = cast(Dict[str, Any], plan["plan_header"])
+        sev = ticket.get("severity")
+        if sev:
+            plan_header.setdefault("assumptions", []).append(
+                f"Severity: {sev}"
+            )
         md = kb_writer.render_agent_playbook(plan_header, snippets)
         ok, msg = kb_verifier.verify_agent_playbook(md)
         # basic telemetry for later dashboarding

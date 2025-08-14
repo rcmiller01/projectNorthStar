@@ -46,11 +46,17 @@ def render_agent_playbook(
     lines.append("")
     lines.append(SECTIONS[4])
     for snip in snippets[:8]:
-        lines.append(
-            f"- [chunk:{snip.get('id')}] dist={snip.get('distance'):.4f}"
+        dist_part = (
+            f" dist={snip.get('distance'):.4f}"
             if isinstance(snip.get("distance"), (int, float))
-            else f"- [chunk:{snip.get('id')}]"
+            else ""
         )
+        src = snip.get("source") or ""
+        if src:
+            line = f"- [chunk:{snip.get('id')}] ({src}){dist_part}"
+        else:
+            line = f"- [chunk:{snip.get('id')}] {dist_part}".rstrip()
+        lines.append(line)
     return "\n".join(lines) + "\n"
 
 # Reflection:
