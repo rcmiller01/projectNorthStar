@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: northstar_bq
+Version: 0.0.1
+Requires-Python: >=3.10
+Provides-Extra: bigquery
+Requires-Dist: google-cloud-bigquery>=3.25.0; extra == "bigquery"
+Requires-Dist: google-auth>=2.33.0; extra == "bigquery"
+Provides-Extra: ingest
+Requires-Dist: pymupdf>=1.24.0; extra == "ingest"
+Requires-Dist: pytesseract>=0.3.10; extra == "ingest"
+Requires-Dist: Pillow>=10.0.0; extra == "ingest"
+Provides-Extra: dashboard
+Requires-Dist: streamlit>=1.36.0; extra == "dashboard"
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: ruff>=0.5.0; extra == "dev"
+Requires-Dist: black>=24.0; extra == "dev"
+Requires-Dist: pre-commit>=3.7.0; extra == "dev"

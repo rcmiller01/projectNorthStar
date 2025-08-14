@@ -1,4 +1,6 @@
 out/
+metrics/
+!metrics/baseline.json
 .env
 __pycache__/
 .ipynb_checkpoints/

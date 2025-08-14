@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval
 
 fmt:
 	ruff --fix .
@@ -72,3 +72,19 @@ create-views:
 	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
 	@[ -n "$$LOCATION" ] || (echo "Set LOCATION"; exit 1)
 	python scripts/create_views.py
+
+demo:
+	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
+	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
+	@[ -n "$$LOCATION" ] || (echo "Set LOCATION"; exit 1)
+	@[ "$$BIGQUERY_REAL" = "1" ] || (echo "Set BIGQUERY_REAL=1 for live demo"; exit 1)
+	python scripts/demo_end_to_end.py
+
+eval:
+	python scripts/gen_eval_set.py
+	python scripts/run_eval.py --top-k 5 --output metrics/eval_results.json
+
+eval-ci:
+	python scripts/gen_eval_set.py
+	python scripts/run_eval.py --top-k 5 --output metrics/eval_results.json --use-stub
+	python scripts/metrics_trend.py

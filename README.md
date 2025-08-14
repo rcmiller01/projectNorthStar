@@ -231,6 +231,121 @@ UI sections (row caps applied):
 
 PII safety: snippets truncated to 200 chars + basic masking (emails, bearer tokens, AWS access keys). No writes or full meta exposure.
 
+## Quick Demo (end-to-end)
+
+Requires live BigQuery (BIGQUERY_REAL=1) and existing remote models.
+
+```bash
+export PROJECT_ID=bq_project_northstar
+export DATASET=demo_ai
+export LOCATION=US
+export BIGQUERY_REAL=1
+pip install -e .[bigquery,ingest,dashboard,dev]
+make demo
+```
+
+Output artifacts:
+- `out/demo_freeform.md` freeform triage playbook
+- `out/demo_ticket.md` ticket triage playbook (DEMO-1)
+
+Summary line example:
+```
+[demo-summary] ticket_links=5 resolutions=1 k=5
+```
+
+Flags: `--no-refresh-loop`, `--max-comments N`, `--k K` (pass via `python scripts/demo_end_to_end.py ...`).
+
+## Micro Eval
+
+Generates a deterministic synthetic eval set (20 items) and runs retrieval + optional verifier scoring.
+
+Stub (offline) or real depending on BIGQUERY_REAL (force stub with `--use-stub`).
+
+```bash
+make eval
+cat metrics/eval_results.json | jq .aggregate
+```
+
+Files produced:
+- `metrics/eval_set.jsonl` (input set)
+- `metrics/eval_results.json` (per-item + aggregate metrics)
+
+Metrics:
+- `hit_rate`: fraction of queries with at least one relevant chunk (substring match)
+- `mean_min_distance`: average minimum vector distance across queries
+- `mean_verifier_score`: average playbook verification success (may be null if skipped)
+
+## Submission Notebook
+
+Notebook: `notebooks/Submission_Demo.ipynb`
+
+Run cells top-to-bottom after setting env vars. Safe to re-run; creates views, ingests samples, performs freeform & (optional) ticket triage and displays outputs. For dashboards, run `make dashboard` locally outside hosted notebook environments.
+
+Kaggle note: if editable installs are restricted, replace `pip install -e .[extras]` with `pip install .[extras]`.
+
+## Tickets (optional, generic schema)
+
+### What this adds
+
+Triage by `--ticket-id` using BigQuery tables (`tickets`, `ticket_events`,
+`ticket_attachments`) plus retrieval to produce a verified playbook. Evidence
+links are written to `ticket_chunk_links`; the generated plan snapshot goes to
+`resolutions`. Multimodal attachments (pdf/image/log) flow through Phase-3
+ingest and become searchable chunks.
+
+### Install
+```bash
+pip install -e .[bigquery]            # core
+# or, if you plan to ingest attachments locally:
+pip install -e .[bigquery,ingest]
+```
+Create the schema (idempotent):
+```bash
+python -c "from bq.tickets import TicketsRepo; from bq.bigquery_client import RealClient; TicketsRepo(RealClient()).ensure_schema()"
+```
+Seed a demo ticket (optional): `make demo` seeds `DEMO-1` or see
+`scripts/demo_end_to_end.py` for inline MERGE example.
+
+### Triage a ticket
+```bash
+# Writebacks enabled (default)
+python -m core.cli triage --ticket-id DEMO-1 --severity P1 --out out/DEMO-1.md
+
+# Read-only (no writebacks)
+python -m core.cli triage --ticket-id DEMO-1 --no-write --severity P1 --out out/DEMO-1.md
+
+# Control comments considered from ticket history (default: 5)
+python -m core.cli triage --ticket-id DEMO-1 --max-comments 3 --out out/DEMO-1.md
+```
+
+### What gets written
+
+`ticket_chunk_links`: rows `{ticket_id, chunk_id, relation="evidence", score≈(1-distance)}`
+
+`resolutions`: `{ticket_id, resolved_at, resolution_text, playbook_md}`
+
+### Dashboard integration
+
+As you ingest / triage, related chunks impact:
+- Common issues (fingerprint frequency)
+- Severity trends (weekly buckets)
+- Duplicate clusters (approx neighbor groups)
+
+Provenance in playbooks & dashboard renders as `(log:file:line)` or
+`(pdf:name:p#)`.
+
+### Safety & PII
+
+Surfaced text is truncated (≤200 chars) and emails / bearer tokens / AKIA keys
+masked in UI. Keep attachments non-PII in demos; prefer synthetic samples. Use
+`--no-write` when exploring.
+
+## CI Eval Metrics
+
+CI archives eval metrics and shows trend deltas on each PR. Threshold env vars:
+`MIN_HIT_RATE`, `MAX_MIN_DIST`, `MIN_VERIFIER` guard regressions. See
+`scripts/metrics_trend.py` and the `eval-ci` Make target.
+
 ## Dev setup (format+lint hooks)
 ```
 pip install -e .[dev]
