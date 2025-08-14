@@ -38,13 +38,22 @@ def _norm_severity(raw: str | None) -> str:
 def cmd_triage(args: argparse.Namespace) -> int:
     client = make_client()
     orch = Orchestrator(client)
-    ticket: dict[str, str] = {
-        "title": args.title or "",
-        "body": args.body or "",
-    }
     sev = _norm_severity(getattr(args, "severity", None))
-    ticket["severity"] = sev
-    result = orch.triage(ticket, k=args.k)
+    if getattr(args, "ticket_id", None):
+        result = orch.triage_ticket(
+            ticket_id=args.ticket_id,
+            max_comments=args.max_comments,
+            severity=sev,
+            k=args.k,
+            write=not args.no_write,
+        )
+    else:
+        ticket: dict[str, str] = {
+            "title": args.title or "",
+            "body": args.body or "",
+            "severity": sev,
+        }
+        result = orch.triage(ticket, k=args.k)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(result["draft_md"], encoding="utf-8")
@@ -73,9 +82,28 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="northstar")
     sub = p.add_subparsers(dest="cmd", required=True)
     t = sub.add_parser("triage", help="Run plan->retrieve->draft->verify loop")
-    t.add_argument("--title", help="Ticket title", required=False)
-    t.add_argument("--body", help="Ticket body", required=False)
+    group = t.add_mutually_exclusive_group()
+    group.add_argument("--title", help="Ticket title", required=False)
+    group.add_argument(
+        "--ticket-id", help="Existing ticket id", required=False
+    )
+    t.add_argument(
+        "--body",
+        help="Ticket body (ignored if --ticket-id)",
+        required=False,
+    )
     t.add_argument("--k", type=int, default=5, help="Top K snippets")
+    t.add_argument(
+        "--max-comments",
+        type=int,
+        default=5,
+        help="Max recent comments when using --ticket-id",
+    )
+    t.add_argument(
+        "--no-write",
+        action="store_true",
+        help="Disable ticket link + resolution writebacks",
+    )
     t.add_argument(
         "--severity",
         help=(
@@ -164,10 +192,12 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         )
     docs_effective = upsert_documents(client, all_docs)
     chunks_effective = upsert_chunks(client, all_chunks)
-    emb_stats = refresh_embeddings(client, loop=getattr(args, "refresh_loop", False))
+    emb_stats = refresh_embeddings(
+        client, loop=getattr(args, "refresh_loop", False)
+    )
     msg = (
-        "DocsEff:{d} ChunksEff:{c} Embeddings(batches={b} total={t} last={lb}) "
-        "(total_docs={td} total_chunks={tc})"
+        "DocsEff:{d} ChunksEff:{c} Embeddings(batches={b} total={t} "
+        "last={lb}) (total_docs={td} total_chunks={tc})"
     ).format(
         d=docs_effective,
         c=chunks_effective,
