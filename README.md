@@ -1,30 +1,57 @@
 # projectNorthStar
 
-Initial scaffold.
+AI-assisted triage & knowledge retrieval over BigQuery (embeddings + vector search + playbook verification). Minimal, idempotent, reproducible.
+
+## Quickstart (5 steps)
+1. Set env (replace if desired):
+	```bash
+	export PROJECT_ID=bq_project_northstar
+	export DATASET=demo_ai
+	export LOCATION=US
+	# (after remote model creation you will set)
+	# export BQ_EMBED_MODEL=${PROJECT_ID}.${DATASET}.embed_model
+	# export BQ_GEN_MODEL=${PROJECT_ID}.${DATASET}.text_model
+	```
+2. Install (choose extras):
+	```bash
+	pip install -e .[dev]                 # core + tests
+	pip install -e .[bigquery]            # + BigQuery real client
+	pip install -e .[bigquery,ingest]     # + OCR / PDF ingest
+	```
+3. Create remote models (one‑time, idempotent):
+	```bash
+	make create-remote-models
+	export BQ_EMBED_MODEL=${PROJECT_ID}.${DATASET}.embed_model
+	export BQ_GEN_MODEL=${PROJECT_ID}.${DATASET}.text_model
+	```
+4. Ingest sample data (multimodal) + embeddings refresh:
+	```bash
+	make ingest-samples   # or: python -m core.cli ingest --path samples --type auto --max-tokens 512 --refresh-loop
+	```
+5. Triage (freeform) OR full demo (also seeds a ticket):
+	```bash
+	python -m core.cli triage --title "Login 500" --body "after reset" --out out/plan.md
+	BIGQUERY_REAL=1 make demo   # requires steps 1-4 & remote models
+	```
+
+Optional: run micro eval
+```bash
+make eval
+cat metrics/eval_results.json | jq .aggregate
+```
+
+## Data & Safety
+Sample files in `samples/` are synthetic / minimal. No PII shipped. Snippets surfaced are truncated (≤200 chars) and basic masking (emails, bearer tokens, AWS access keys) applies in dashboard & playbooks. Attach only non-sensitive data when experimenting.
 
 ## Overview
 
-This repository has been initialized. Replace this placeholder with project details.
-
-## Quickstart (Phase 0)
-1) Set env (Kaggle or local):
-```
-PROJECT_ID=bq_project_northstar
-DATASET=demo_ai
-LOCATION=US
-BQ_EMBED_MODEL=text-embedding-004
-BQ_GEN_MODEL=gemini-1.5-pro  # optional
-```
-2) Create embeddings + search:
-- Run the notebook: `notebooks/BigQueryAI_demo.ipynb`
-- Or (coming Phase 1) CLI: `python -m src.cli demo`
-
-3) Verify:
-```
-pytest -q
-```
-
-Phase 1 (next): Minimal triage loop (retrieve → plan → verify).
+Core pieces:
+- Ingest (logs / pdf / OCR image → chunks → embeddings refresh loop)
+- Hybrid retrieval (vector + simple lexical) with multi-type filtering
+- Triage orchestrator (retrieve → draft plan → verifier gating)
+- Optional ticket schema (writebacks: evidence links + resolutions)
+- Streamlit dashboard (common issues, severity trends, duplicates)
+- Micro evaluation harness (hit rate / distance / verifier score deltas in CI)
 
 ## Triage CLI (Phase 1)
 
@@ -345,6 +372,10 @@ masked in UI. Keep attachments non-PII in demos; prefer synthetic samples. Use
 CI archives eval metrics and shows trend deltas on each PR. Threshold env vars:
 `MIN_HIT_RATE`, `MAX_MIN_DIST`, `MIN_VERIFIER` guard regressions. See
 `scripts/metrics_trend.py` and the `eval-ci` Make target.
+
+## License
+
+Released under the MIT License (see `LICENSE`). Sample data is synthetic. If you add third-party datasets or models, ensure their licenses are compatible and document them here.
 
 ## Dev setup (format+lint hooks)
 ```
