@@ -115,5 +115,15 @@ assets:
 
 demo-assets: assets
 	@echo "[demo-assets] regenerating assets..."
+	@if [ "$$BIGQUERY_REAL" != "1" ]; then \
+	  echo "[demo-assets] BIGQUERY_REAL!=1 (or unset) -> skipping live demo (set BIGQUERY_REAL=1 to enable)"; \
+	  echo "[demo-assets] assets complete (demo skipped)"; \
+	  exit 0; \
+	fi
+	@if [ -z "$$PROJECT_ID" ] || [ -z "$$DATASET" ] || [ -z "$$LOCATION" ]; then \
+	  echo "[demo-assets] missing one of PROJECT_ID/DATASET/LOCATION -> skipping live demo"; \
+	  echo "[demo-assets] set e.g.: export PROJECT_ID=bq_project_northstar DATASET=demo_ai LOCATION=US BIGQUERY_REAL=1"; \
+	  exit 0; \
+	fi
 	@$(MAKE) demo
 	@echo "[demo-assets] assets + end-to-end demo complete"
