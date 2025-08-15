@@ -173,6 +173,11 @@ make arch-png
 make arch-svg
 ```
 
+### Verify diagram sync
+```bash
+make arch-verify   # fails if PNG/SVG don't match .mmd
+```
+
 Outputs land in `docs/architecture.png` and `docs/architecture.svg`.
 
 ![Architecture overview](docs/architecture.png)

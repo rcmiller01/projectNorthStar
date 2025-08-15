@@ -10,3 +10,5 @@ venv/
 env/
 secret-scan.txt
 # keep docs images (no ignore rule) so dashboard.png can be committed
+# temp arch verification directory
+.tmp_arch/

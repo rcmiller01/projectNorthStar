@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean arch-verify
 
 fmt:
 	ruff --fix .
@@ -114,6 +114,8 @@ ARCH_SRC := docs/architecture.mmd
 ARCH_PNG := docs/architecture.png
 ARCH_SVG := docs/architecture.svg
 
+TMP_ARCH_DIR := .tmp_arch
+
 # Helper: test if mmdc exists
 which-mmdc:
 	@command -v mmdc >/dev/null 2>&1 || { \
@@ -137,6 +139,17 @@ arch: arch-png arch-svg
 arch-clean:
 	@rm -f $(ARCH_PNG) $(ARCH_SVG)
 	@echo "[arch] removed generated images"
+
+arch-verify: which-mmdc
+	@rm -rf $(TMP_ARCH_DIR) && mkdir -p $(TMP_ARCH_DIR)
+	@mmdc -i $(ARCH_SRC) -o $(TMP_ARCH_DIR)/architecture.png -b transparent
+	@mmdc -i $(ARCH_SRC) -o $(TMP_ARCH_DIR)/architecture.svg
+	@diff -q $(TMP_ARCH_DIR)/architecture.png $(ARCH_PNG) >/dev/null 2>&1 || \
+	  (echo "[arch-verify] PNG out of date. Rebuild with 'make arch'."; exit 1)
+	@diff -q $(TMP_ARCH_DIR)/architecture.svg $(ARCH_SVG) >/dev/null 2>&1 || \
+	  (echo "[arch-verify] SVG out of date. Rebuild with 'make arch'."; exit 1)
+	@rm -rf $(TMP_ARCH_DIR)
+	@echo "[arch-verify] diagrams are up to date"
 
 assets:
 	python scripts/gen_assets.py

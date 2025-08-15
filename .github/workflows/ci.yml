@@ -127,3 +127,43 @@ jobs:
         run: |
           echo "### Public Sweep" >> $GITHUB_STEP_SUMMARY
           echo "Ran public_sweep.py; review logs above for any WARN lines." >> $GITHUB_STEP_SUMMARY
+
+  arch_artifacts:
+    runs-on: ubuntu-latest
+    needs: [lint_test]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for git diff comparison
+
+      - name: Install mermaid-cli
+        run: npm i -g @mermaid-js/mermaid-cli
+
+      - name: Check if .mmd changed
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}... | grep -E '^docs/architecture\.mmd$' || true)
+          else
+            # On push to main, check last commit
+            CHANGED=$(git diff --name-only HEAD~1 HEAD | grep -E '^docs/architecture\.mmd$' || true)
+          fi
+          if [ -z "$CHANGED" ]; then echo "changed=false" >> $GITHUB_OUTPUT; else echo "changed=true" >> $GITHUB_OUTPUT; fi
+
+      - name: Verify diagrams match .mmd
+        if: steps.diff.outputs.changed == 'true'
+        run: make arch-verify
+
+      - name: Build fresh diagrams (artifact)
+        if: failure()    # only build and upload if verify failed
+        run: make arch
+
+      - name: Upload diagrams
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: architecture-diagrams-out-of-sync
+          path: |
+            docs/architecture.mmd
+            docs/architecture.png
+            docs/architecture.svg
