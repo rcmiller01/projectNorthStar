@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets
 
 fmt:
 	ruff --fix .
@@ -112,3 +112,8 @@ release:
 assets:
 	python scripts/gen_assets.py
 	@echo "[assets] dashboard.png + demo.pdf + demo.png + samples_demo_bundle.zip ready"
+
+demo-assets: assets
+	@echo "[demo-assets] regenerating assets..."
+	@$(MAKE) demo
+	@echo "[demo-assets] assets + end-to-end demo complete"
