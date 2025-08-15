@@ -16,22 +16,15 @@ def model_exists(client: "bigquery.Client", fq_model_id: str) -> bool:
     """Return True if fully-qualified model id (proj.ds.name) exists."""
     if not fq_model_id or fq_model_id.count(".") != 2:
         return False
-    proj, ds, name = fq_model_id.split(".")
-    q = f"""
-    SELECT 1
-    FROM `{proj}.{ds}.INFORMATION_SCHEMA.MODELS`
-    WHERE model_name = @name
-    LIMIT 1
-    """
-    job = client.query(
-        q,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("name", "STRING", name)
-            ]
-        ),
-    )
-    return job.result().total_rows > 0
+    
+    try:
+        # Use client.get_model() instead of INFORMATION_SCHEMA query
+        # This avoids issues with INFORMATION_SCHEMA.MODELS in some regions
+        model = client.get_model(fq_model_id)
+        return True
+    except Exception:
+        # Model doesn't exist or we don't have permission to access it
+        return False
 
 
 def dataset_location(

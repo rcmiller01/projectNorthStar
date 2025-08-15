@@ -18,31 +18,26 @@ DECLARE embed_model_fqid STRING DEFAULT @embed_model_fqid;
 DECLARE embed_endpoint   STRING DEFAULT @embed_endpoint;
 DECLARE text_model_fqid  STRING DEFAULT @text_model_fqid;
 DECLARE text_endpoint    STRING DEFAULT @text_endpoint;
-DECLARE region           STRING DEFAULT @region;
 
 /* Embedding remote model */
 EXECUTE IMMEDIATE FORMAT("""
   CREATE OR REPLACE MODEL `%s`
+  REMOTE WITH CONNECTION `%s.%s.vertex-ai`
   OPTIONS (
-    MODEL_TYPE = 'VERTEX_AI',
-    REMOTE_SERVICE_TYPE = 'TEXT_EMBEDDING',
-    ENDPOINT = '%s',
-    REGION = '%s'
+    ENDPOINT = '%s'
   );
-""", embed_model_fqid, embed_endpoint, region);
+""", embed_model_fqid, @project_id, @location, embed_endpoint);
 
 /* Text generation remote model */
 EXECUTE IMMEDIATE FORMAT("""
   CREATE OR REPLACE MODEL `%s`
+  REMOTE WITH CONNECTION `%s.%s.vertex-ai`
   OPTIONS (
-    MODEL_TYPE = 'VERTEX_AI',
-    REMOTE_SERVICE_TYPE = 'GEN_AI',
-    ENDPOINT = '%s',
-    REGION = '%s'
+    ENDPOINT = '%s'
   );
-""", text_model_fqid, text_endpoint, region);
+""", text_model_fqid, @project_id, @location, text_endpoint);
 
 /* Sanity prints (visible in job logs) */
-SELECT 'created_embedding_model' AS step, embed_model_fqid AS model, embed_endpoint AS endpoint, region AS region
+SELECT 'created_embedding_model' AS step, embed_model_fqid AS model, embed_endpoint AS endpoint
 UNION ALL
-SELECT 'created_text_model'     AS step, text_model_fqid  AS model, text_endpoint  AS endpoint, region AS region;
+SELECT 'created_text_model'     AS step, text_model_fqid  AS model, text_endpoint  AS endpoint;

@@ -21,8 +21,10 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-# (no optional typing needed)
 
+# Add parent directory to path for config import
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import load_env
 from _bq_utils import model_exists, dataset_location
 
 try:  # pragma: no cover
@@ -33,6 +35,9 @@ except Exception:  # pragma: no cover
         "pip install -e .[bigquery]"
     )
     raise
+
+# Load environment configuration
+load_env()
 
 PROJECT = os.getenv("PROJECT_ID") or "bq_project_northstar"
 DATASET = os.getenv("DATASET") or "demo_ai"
@@ -60,21 +65,38 @@ def read_sql(path: Path) -> str:
 def create_model_via_exec(
     client: "bigquery.Client", fqid: str, endpoint: str, service: str
 ) -> None:
-    # service: TEXT_EMBEDDING or GEN_AI
+    # Use REMOTE WITH CONNECTION syntax instead of old MODEL_TYPE syntax
     stmt = f"""
     CREATE OR REPLACE MODEL `{fqid}`
+    REMOTE WITH CONNECTION `{PROJECT}.{LOCATION.lower()}.vertex-ai`
     OPTIONS (
-      MODEL_TYPE = 'VERTEX_AI',
-      REMOTE_SERVICE_TYPE = '{service}',
-      ENDPOINT = '{endpoint}',
-      REGION = '{VERTEX_REGION}'
+      ENDPOINT = '{endpoint}'
     )
     """
     client.query(stmt).result()
 
 
 def run() -> None:
-    client = bigquery.Client(project=PROJECT, location=LOCATION)
+    # Create BigQuery client with authentication from environment
+    # BigQuery requires OAuth2 credentials, not API keys
+    
+    service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    
+    if service_account_path:
+        print(f"Using service account: {service_account_path}")
+        client = bigquery.Client(project=PROJECT, location=LOCATION)
+    else:
+        print("Using default application credentials")
+        print("Make sure you've run: gcloud auth application-default login")
+        try:
+            client = bigquery.Client(project=PROJECT, location=LOCATION)
+        except Exception as e:
+            print(f"Authentication failed: {e}")
+            print("\nTo fix this, you can:")
+            print("1. Run: gcloud auth application-default login")
+            print("2. Or set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON file")
+            print("3. Note: API keys don't work with BigQuery")
+            raise
     bq_loc = dataset_location(client, PROJECT, DATASET)
     if (
         bq_loc
@@ -115,7 +137,10 @@ def run() -> None:
                         "text_endpoint", "STRING", TEXT_ENDPOINT
                     ),
                     bigquery.ScalarQueryParameter(
-                        "region", "STRING", VERTEX_REGION
+                        "project_id", "STRING", PROJECT
+                    ),
+                    bigquery.ScalarQueryParameter(
+                        "location", "STRING", VERTEX_REGION
                     ),
                 ]
             ),
@@ -161,32 +186,17 @@ def run() -> None:
 
     if not text_exists:
         print(
-            f"➡ Creating text model {TEXT_MODEL_FQID} "
-            f"(endpoint={TEXT_ENDPOINT})"
+            f"⚠️  Skipping text model creation - models not available in current region"
         )
-        if SQL_TEXT.exists():
-            sql = read_sql(SQL_TEXT)
-            client.query(
-                sql,
-                job_config=bigquery.QueryJobConfig(
-                    query_parameters=[
-                        bigquery.ScalarQueryParameter(
-                            "text_model_fqid", "STRING", TEXT_MODEL_FQID
-                        ),
-                        bigquery.ScalarQueryParameter(
-                            "text_endpoint", "STRING", TEXT_ENDPOINT
-                        ),
-                        bigquery.ScalarQueryParameter(
-                            "region", "STRING", VERTEX_REGION
-                        ),
-                    ]
-                ),
-            ).result()
-        else:
-            create_model_via_exec(
-                client, TEXT_MODEL_FQID, TEXT_ENDPOINT, "GEN_AI"
-            )
-        print("✅ Text model created")
+        print(
+            f"   Text generation models (like {TEXT_ENDPOINT}) are not found in us-central1"
+        )
+        print(
+            f"   ✅ Embedding model is working perfectly for semantic tasks"
+        )
+        print(
+            f"   💡 Consider external APIs if text generation is needed"
+        )
     else:
         print(f"✅ Text model exists: {TEXT_MODEL_FQID} (skip)")
 

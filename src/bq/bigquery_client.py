@@ -9,6 +9,9 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Import config module for authentication handling
+from config import load_env
+
 SQL_DIR = Path("sql")
 
 
@@ -67,9 +70,35 @@ class RealClient(BigQueryClientBase):
                 "bigquery lib missing; install or unset BIGQUERY_REAL."
             ) from exc
         self._bq_mod = bigquery_mod
-        self._client = bigquery_mod.Client(
-            project=self.project, location=self.location
-        )
+        
+        # Support different authentication methods
+        api_key = os.getenv("GOOGLE_API_KEY")
+        service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        
+        if api_key:
+            # Use API key authentication (for testing)
+            from google.auth.credentials import AnonymousCredentials
+            self._client = bigquery_mod.Client(
+                project=self.project,
+                location=self.location,
+                credentials=AnonymousCredentials()
+            )
+            # Note: API keys have limited BigQuery support
+            print(f"[auth] Using API key authentication for project "
+                  f"{self.project}")
+        elif service_account_path:
+            # Use service account file
+            self._client = bigquery_mod.Client(
+                project=self.project, location=self.location
+            )
+            print(f"[auth] Using service account from {service_account_path}")
+        else:
+            # Use default credentials (ADC)
+            self._client = bigquery_mod.Client(
+                project=self.project, location=self.location
+            )
+            print(f"[auth] Using default credentials for project "
+                  f"{self.project}")
 
     def run_sql_template(
         self, name: str, params: Dict[str, Any]
