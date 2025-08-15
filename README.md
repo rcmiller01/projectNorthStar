@@ -78,6 +78,12 @@ make eval
 cat metrics/eval_results.json | jq .aggregate
 ```
 
+## Build release assets (synthetic)
+```bash
+make assets
+# regenerates docs/dashboard.png, samples_demo_bundle.zip, etc.
+```
+
 ## External Quickstart (tagged release)
 
 Use this if you just want to try the released package without cloning everything first.

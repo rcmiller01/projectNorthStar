@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets
 
 fmt:
 	ruff --fix .
@@ -98,6 +98,9 @@ sweep-secrets-strict:
 public-sweep:
 	python scripts/public_sweep.py
 
+public-sweep-suppress:
+	python scripts/public_sweep.py --suppress-internal
+
 release-dry-run:
 	@[ -n "$$RELEASE_VERSION" ] || echo "(optional) RELEASE_VERSION not set; will bump patch" 1>&2 || true
 	DRY_RUN=1 python scripts/release.py --part $${PART:-patch} --dry-run
@@ -105,3 +108,7 @@ release-dry-run:
 release:
 	@[ -n "$$RELEASE_VERSION" ] || echo "(no RELEASE_VERSION provided; bumping $$PART or patch)" 1>&2
 	python scripts/release.py --part $${PART:-patch}
+
+assets:
+	python scripts/gen_assets.py
+	@echo "[assets] dashboard.png + demo.pdf + demo.png + samples_demo_bundle.zip ready"

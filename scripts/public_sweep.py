@@ -9,6 +9,7 @@ Exit codes:
 from __future__ import annotations
 import re
 from pathlib import Path
+import argparse
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_FILE_MB = 25
@@ -107,11 +108,16 @@ def scan_internal_urls(tracked):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--suppress-internal', action='store_true')
+    args = ap.parse_args()
     tracked = list_tracked_files()
     large = scan_large(tracked)
     noisy_nb = scan_notebooks(tracked)
     creds = scan_creds(tracked)
     internal = scan_internal_urls(tracked)
+    if args.suppress_internal:
+        internal = []
 
     if large:
         print('[public-sweep] LARGE files:')
