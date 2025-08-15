@@ -162,6 +162,19 @@ npm i -g @mermaid-js/mermaid-cli
 mmdc -i docs/architecture.mmd -o docs/architecture.png -b transparent
 ```
 
+### Build the diagram
+```bash
+# Install once
+npm i -g @mermaid-js/mermaid-cli
+# Generate PNG + SVG
+make arch
+# Or only one format
+make arch-png
+make arch-svg
+```
+
+Outputs land in `docs/architecture.png` and `docs/architecture.svg`.
+
 ![Architecture overview](docs/architecture.png)
 
 Mapping (diagram → code):

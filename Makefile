@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean
 
 fmt:
 	ruff --fix .
@@ -108,6 +108,35 @@ release-dry-run:
 release:
 	@[ -n "$$RELEASE_VERSION" ] || echo "(no RELEASE_VERSION provided; bumping $$PART or patch)" 1>&2
 	python scripts/release.py --part $${PART:-patch}
+
+# Where your Mermaid source lives
+ARCH_SRC := docs/architecture.mmd
+ARCH_PNG := docs/architecture.png
+ARCH_SVG := docs/architecture.svg
+
+# Helper: test if mmdc exists
+which-mmdc:
+	@command -v mmdc >/dev/null 2>&1 || { \
+	  echo "[arch] mermaid-cli (mmdc) not found."; \
+	  echo "      Install: npm i -g @mermaid-js/mermaid-cli"; \
+	  exit 127; }
+
+arch-png: which-mmdc
+	mmdc -i $(ARCH_SRC) -o $(ARCH_PNG) -b transparent
+	@echo "[arch] wrote $(ARCH_PNG)"
+
+arch-svg: which-mmdc
+	mmdc -i $(ARCH_SRC) -o $(ARCH_SVG)
+	@echo "[arch] wrote $(ARCH_SVG)"
+
+# Build both
+arch: arch-png arch-svg
+	@echo "[arch] all done"
+
+# Optional clean
+arch-clean:
+	@rm -f $(ARCH_PNG) $(ARCH_SVG)
+	@echo "[arch] removed generated images"
 
 assets:
 	python scripts/gen_assets.py
