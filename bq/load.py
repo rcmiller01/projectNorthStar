@@ -46,7 +46,7 @@ def _create_staging(
     FROM UNNEST(JSON_QUERY_ARRAY(PARSE_JSON(@rows), '$')) r
     """
     sql = sql.replace(
-        "@rows", f"'{encoded.replace("'", r"\'")}'"
+        "@rows", f"'{encoded.replace(chr(39), chr(92) + chr(39))}'"
     )  # naive escaping
     client.run_sql_template("inline", {"raw_sql": sql})  # type: ignore
 

@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-@dataclass(slots=True)
+@dataclass
 class ClassificationResult:
     category: str
     confidence: float

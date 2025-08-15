@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable
 
 
-@dataclass(slots=True)
+@dataclass
 class QueryResult:
     rows: list[dict[str, Any]]
     job_id: str
