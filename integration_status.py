@@ -6,15 +6,22 @@ BigQuery + Vertex AI Integration Status Report
 This script tests and reports on the current status of our BigQuery-Vertex AI integration.
 """
 
+import os
 from config import load_env
 from google.cloud import bigquery
 from google.cloud.bigquery_connection_v1 import ConnectionServiceClient
+
 
 def main():
     print("🔍 BigQuery + Vertex AI Integration Status Report")
     print("=" * 50)
     
     load_env()
+    
+    # Get project configuration
+    project_id = os.getenv("PROJECT_ID", "your-project-id")
+    dataset = os.getenv("DATASET", "demo_ai")
+    location = os.getenv("LOCATION", "US")
     
     # Test 1: Authentication
     print("\n1. 🔐 Authentication:")
@@ -43,9 +50,9 @@ def main():
     # Test 3: Embedding Model
     print("\n3. 🧠 Embedding Model:")
     try:
-        query = """
+        query = f"""
         SELECT * FROM ML.GENERATE_EMBEDDING(
-            MODEL `gleaming-bus-468914-a6.demo_ai.embed_model`,
+            MODEL `{project_id}.{dataset}.embed_model`,
             (SELECT 'test embedding generation' as content)
         )
         """
@@ -61,9 +68,9 @@ def main():
     # Test 4: Text Generation Model
     print("\n4. 📝 Text Generation Model:")
     try:
-        query = """
-        CREATE OR REPLACE MODEL `gleaming-bus-468914-a6.demo_ai.temp_text_model`
-        REMOTE WITH CONNECTION `gleaming-bus-468914-a6.us.vertex-ai`
+        query = f"""
+        CREATE OR REPLACE MODEL `{project_id}.{dataset}.temp_text_model`
+        REMOTE WITH CONNECTION `{project_id}.{location.lower()}.vertex-ai`
         OPTIONS (
           ENDPOINT = 'gemini-1.5-pro'
         )
@@ -73,7 +80,7 @@ def main():
         print("   ✅ Text generation model created successfully")
         
         # Clean up
-        client.query("DROP MODEL `gleaming-bus-468914-a6.demo_ai.temp_text_model`").result()
+        client.query(f"DROP MODEL `{project_id}.{dataset}.temp_text_model`").result()
         
     except Exception as e:
         error_msg = str(e)

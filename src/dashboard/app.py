@@ -86,7 +86,7 @@ def main():  # pragma: no cover - UI function
     sev_in = ",".join(f"'" + s + "'" for s in sel_sev) or "'__none__'"
 
     # Get config values
-    project_id = os.getenv('PROJECT_ID', 'gleaming-bus-468914-a6')
+    project_id = os.getenv('PROJECT_ID', 'your-project-id')
     dataset = os.getenv('DATASET', 'demo_ai')
     dataset_fq = f"{project_id}.{dataset}"
 

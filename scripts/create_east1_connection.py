@@ -21,7 +21,7 @@ except Exception as e:
 
 load_env()
 
-PROJECT = os.getenv("PROJECT_ID") or "gleaming-bus-468914-a6"
+PROJECT = os.getenv("PROJECT_ID") or "your-project-id"
 VERTEX_REGION = "us-east1"
 CONNECTION_ID = "vertex-ai-east1"
 
