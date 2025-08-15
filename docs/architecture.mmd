@@ -1,0 +1,86 @@
+flowchart LR
+  %% Styles
+  classDef local fill:#e8f0fe,stroke:#3b6bd6,color:#0b2a6f,stroke-width:1.5px;
+  classDef bq fill:#e8f5e9,stroke:#2e7d32,color:#0a3d12,stroke-width:1.5px;
+  classDef ci fill:#fff3e0,stroke:#ef6c00,color:#5d2a00,stroke-width:1.5px;
+  classDef store fill:#ffffff,stroke:#2e7d32,stroke-dasharray: 3 2;
+  classDef view fill:#f1f8e9,stroke:#33691e,stroke-dasharray: 6 3;
+  classDef model fill:#f0fff4,stroke:#1b5e20,stroke-width:2px;
+
+  %% Local / CLI
+  subgraph L[Local / CLI]
+    A1[core.cli\n-- ingest | triage]:::local
+    A2[ingest/\n pdf|image(OCR)|log + chunker]:::local
+    A3[retrieval.hybrid\n(vector search + type filters)]:::local
+    A4[experts.kb_writer\n→ playbook.md]:::local
+    A5[verify.kb_verifier\n(safety rules) 🔒]:::local
+    A6[dashboard/app.py\n(Streamlit, read‑only)]:::local
+  end
+
+  %% BigQuery
+  subgraph B[BigQuery (${PROJECT}.${DATASET})]
+    B0[(create_remote_models\nidempotent) ⚑]:::model
+    B1[(documents)]:::store
+    B2[(chunks)]:::store
+    B3[(chunks_emb)]:::store
+    B4[(tickets)]:::store
+    B5[(ticket_events)]:::store
+    B6[(ticket_attachments)]:::store
+    B7[(ticket_chunk_links)]:::store
+    B8[(resolutions)]:::store
+
+    V1[[view_common_issues]]:::view
+    V2[[view_issues_by_severity]]:::view
+    V3[[view_duplicate_chunks]]:::view
+
+    M1{{embed_model\nML.GENERATE_EMBEDDING}}:::model
+    M2{{text_model\nML.GENERATE_TEXT}}:::model
+  end
+
+  %% CI / Release
+  subgraph C[CI / Release]
+    C1[lint + tests]:::ci
+    C2[micro‑eval\nhit@k, distance, verifier]:::ci
+    C3[secret/public sweeps]:::ci
+    C4[release tag + changelog]:::ci
+  end
+
+  %% Flows
+  A1 -- ingest --> A2
+  A2 -- MERGE --> B1
+  A2 -- MERGE --> B2
+  A1 -. embeddings refresh .-> B3
+  B2 -- missing text --> M1
+  M1 -- vectors --> B3
+
+  %% Triage path
+  A1 -- triage --> A3
+  A3 -- ML.VECTOR_SEARCH --> B3
+  B3 -- neighbor ids --> A3
+  A3 -- snippets + provenance --> A4
+  A4 --> A5
+  A5 -- verified plan.md --> A4
+
+  %% Tickets read/write
+  A1 -. read .-> B4
+  A1 -. read .-> B5
+  A1 -. write links .-> B7
+  A1 -. write plan .-> B8
+
+  %% Dashboard reads
+  A6 -. read-only .-> V1
+  A6 -. read-only .-> V2
+  A6 -. read-only .-> V3
+
+  %% CI relations
+  C1 --> C2
+  C1 --> C3
+  C2 --> C4
+  C3 --> C4
+
+  %% Class assign
+  class A1,A2,A3,A4,A5,A6 local
+  class B0,B1,B2,B3,B4,B5,B6,B7,B8,M1,M2,V1,V2,V3 bq
+  class C1,C2,C3,C4 ci
+
+%% Legend mapping (see README for details)

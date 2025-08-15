@@ -150,6 +150,28 @@ Core pieces:
 - Optional ticket schema (writebacks: evidence links + resolutions)
 - Streamlit dashboard (common issues, severity trends, duplicates)
 - Micro evaluation harness (hit rate / distance / verifier score deltas in CI)
+ - Micro evaluation harness (hit rate / distance / verifier score deltas in CI)
+
+### Architecture
+
+Mermaid source: `docs/architecture.mmd`
+
+Generate PNG (requires Mermaid CLI):
+```bash
+npm i -g @mermaid-js/mermaid-cli
+mmdc -i docs/architecture.mmd -o docs/architecture.png -b transparent
+```
+
+![Architecture overview](docs/architecture.png)
+
+Mapping (diagram → code):
+- Ingest → `bq/load.py`, `bq/refresh.py`, `sql/upsert_*`, `sql/embeddings_refresh.sql`
+- Retrieve → `retrieval/hybrid.py`, `sql/chunk_vector_search.sql`, BigQuery `ML.VECTOR_SEARCH`
+- Draft / Verify → `experts/kb_writer.py`, `verify/kb_verifier.py`
+- Tickets → `bq/tickets.py`, `sql/ddl_tickets.sql`, `sql/insert_*`
+- Dashboard → `src/dashboard/app.py`, `sql/views_*.sql`
+- CI / Eval → `.github/workflows/*`, `scripts/run_eval.py`, `scripts/metrics_trend.py`
+- Safety → `scripts/secret_sweep.py`, `scripts/public_sweep.py`
 
 ## Triage CLI (Phase 1)
 
