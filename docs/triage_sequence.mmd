@@ -1,0 +1,35 @@
+sequenceDiagram
+    autonumber
+    participant CLI as core.cli (triage)
+    participant ORC as Orchestrator
+    participant TIX as bq.TicketsRepo
+    participant BQ as BigQuery (dataset)
+    participant RET as retrieval.hybrid
+    participant EMB as ML.VECTOR_SEARCH (chunks_emb)
+    participant WR as experts.kb_writer
+    participant VF as verify.kb_verifier
+    participant OUT as out/*.md
+
+    CLI->>ORC: triage_ticket(ticket_id="DEMO-1", max_comments=5, severity=P1)
+    ORC->>TIX: load_ticket_for_triage("DEMO-1")
+    TIX->>BQ: SELECT title, body, recent comments
+    BQ-->>TIX: ticket rows
+    TIX-->>ORC: ticket context (title/body + comments)
+
+    ORC->>RET: retrieve(query_text, k, types)
+    RET->>EMB: embed(query) + vector search over chunks_emb
+    EMB-->>RET: top‑k (chunk_id, distance, provenance)
+    RET-->>ORC: normalized snippets (+ provenance)
+
+    ORC->>WR: draft_playbook(query, snippets, severity)
+    WR-->>ORC: playbook.md (steps, references)
+    ORC->>VF: verify(playbook.md)
+    VF-->>ORC: result {ok, violations, score}
+
+    alt writebacks enabled
+        ORC->>BQ: MERGE ticket_chunk_links (ticket↔chunk, score≈1-distance)
+        ORC->>BQ: MERGE resolutions (playbook snapshot)
+    end
+
+    ORC-->>CLI: telemetry {k, distances, score, links_written}
+    CLI->>OUT: write out/DEMO-1.md (plan + references)

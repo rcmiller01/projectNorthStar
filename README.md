@@ -214,6 +214,26 @@ python -m core.cli triage --title "Image upload fails" --body "content-type mism
 python scripts\validate_phase0.py
 ```
 
+### Triage Sequence (Ticket Flow)
+
+Mermaid source: `docs/triage_sequence.mmd`
+
+Render to PNG (optional):
+```bash
+mmdc -i docs/triage_sequence.mmd -o docs/triage_sequence.png -b transparent
+```
+
+![Triage sequence](docs/triage_sequence.png)
+
+Key mapping:
+- Orchestrator logic: `core/orchestrator.py`
+- Ticket repo + schema: `bq/tickets.py`, `sql/ddl_tickets.sql`, `sql/insert_*`
+- Retrieval: `retrieval/hybrid.py`, `sql/chunk_vector_search.sql`
+- Embedding & search: BigQuery `ML.GENERATE_EMBEDDING`, `ML.VECTOR_SEARCH`
+- Draft: `experts/kb_writer.py`
+- Verify: `verify/kb_verifier.py`
+- Writebacks: `ticket_chunk_links`, `resolutions` tables
+
 ### Create Remote Models (Embedding + Text)
 
 You can create the two required remote Vertex models inside your dataset via BigQuery ML.
