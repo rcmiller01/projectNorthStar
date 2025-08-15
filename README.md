@@ -178,6 +178,11 @@ make arch-svg
 make arch-verify   # fails if PNG/SVG don't match .mmd
 ```
 
+**Windows PowerShell alternative:**
+```powershell
+scripts/arch_verify.ps1   # PowerShell equivalent of make arch-verify
+```
+
 Outputs land in `docs/architecture.png` and `docs/architecture.svg`.
 
 ![Architecture overview](docs/architecture.png)
