@@ -2,15 +2,27 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict
+import sys
+import os
 
 import streamlit as st
 
-try:
-    from src.bq.bigquery_client import make_client  # reuse existing client factory
-except Exception:  # pragma: no cover
-    from bq.bigquery_client import make_client  # fallback if path differs
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from pipeline import config as cfg
+# Now import from the root level
+from config import load_env
+from google.cloud import bigquery
+
+# Load environment
+load_env()
+
+
+def make_client():
+    """Create BigQuery client with loaded config."""
+    return bigquery.Client()
+
 
 SQL_DIR = Path("sql")
 VIEW_FILES = [
@@ -73,7 +85,10 @@ def main():  # pragma: no cover - UI function
     end_ts = f"TIMESTAMP('{end_date} 23:59:59 UTC')"
     sev_in = ",".join(f"'" + s + "'" for s in sel_sev) or "'__none__'"
 
-    dataset_fq = f"{cfg.PROJECT_ID}.{cfg.DATASET}"
+    # Get config values
+    project_id = os.getenv('PROJECT_ID', 'gleaming-bus-468914-a6')
+    dataset = os.getenv('DATASET', 'demo_ai')
+    dataset_fq = f"{project_id}.{dataset}"
 
     col1, col2 = st.columns(2)
     with col1:
