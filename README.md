@@ -16,6 +16,8 @@ AI-assisted triage & knowledge retrieval over BigQuery with Vertex AI integratio
 - **Graph Expansion**: Enhanced retrieval with neighbor relationships
 - **Security First**: Proper credential management and data sanitization
 
+> 📋 **[BigQuery AI Hackathon Experience](docs/survey.md)** - Read about our team's experience building this multimodal AI triage system with BigQuery ML, including challenges, successes, and lessons learned during the hackathon.
+
 ## 📋 Prerequisites
 
 - Google Cloud Project with BigQuery and Vertex AI enabled
@@ -196,6 +198,8 @@ make sweep-secrets-strict  # Strict mode with lower threshold
 4. **Review Changes**: Check for accidentally committed credentials
 
 ## 📊 Dashboard Features
+
+![Analytics Dashboard Overview](docs/dashboard.png)
 
 The Streamlit dashboard provides real-time analytics:
 
