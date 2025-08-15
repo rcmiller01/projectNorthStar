@@ -33,12 +33,24 @@ VIEW_FILES = [
 
 
 def ensure_views(client) -> None:
-    """Best-effort create/replace views (idempotent)."""
-    for f in VIEW_FILES:
-        try:
-            client.run_sql_template(f, {})
-        except Exception as exc:  # pragma: no cover - non-fatal
-            st.warning(f"Failed to create view {f}: {exc}")
+    """Best-effort create/replace views (idempotent) - only in real BigQuery mode."""
+    # Only try to create views if we're in real BigQuery mode and client supports it
+    if os.getenv("BIGQUERY_REAL") != "1":
+        st.info("📊 Running in stub mode - views not created. Set BIGQUERY_REAL=1 for live data.")
+        return
+    
+    if not hasattr(client, 'run_sql_template'):
+        st.warning("⚠️ Client doesn't support view creation. Run `make create-views` manually if needed.")
+        return
+    
+    try:
+        for f in VIEW_FILES:
+            try:
+                client.run_sql_template(f, {})
+            except Exception as exc:  # pragma: no cover - non-fatal
+                st.warning(f"Failed to create view {f}: {exc}")
+    except Exception as e:
+        st.warning(f"Views not created at startup: {e}. Run `make create-views` if you need live data.")
 
 
 def mask_text(s: str) -> str:
@@ -72,7 +84,7 @@ def main():  # pragma: no cover - UI function
     ensure_views(client)
 
     # Sidebar filters
-    default_end = datetime.utcnow()
+    default_end = datetime.now()
     default_start = default_end - timedelta(days=30)
     st.sidebar.header("Filters")
     start_date = st.sidebar.date_input("Start", default_start.date())

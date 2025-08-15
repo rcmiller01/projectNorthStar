@@ -20,6 +20,14 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# Load environment configuration
+from config import load_env
+load_env()
+
 from src.bq.bigquery_client import make_client
 
 TEMPLATES: List[Tuple[str, str]] = [
