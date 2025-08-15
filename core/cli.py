@@ -6,6 +6,7 @@ Usage:
         --body "Long body" \
         --out out/playbook.md
 """
+
 from __future__ import annotations
 import argparse
 
@@ -41,7 +42,8 @@ def cmd_triage(args: argparse.Namespace) -> int:
     orch = Orchestrator(client)
     sev = _norm_severity(getattr(args, "severity", None))
     router_mode = getattr(args, "router", "auto")
-    
+    graph_boost = getattr(args, "graph_boost", 0.0)
+
     if getattr(args, "ticket_id", None):
         result = orch.triage_ticket(
             ticket_id=args.ticket_id,
@@ -50,6 +52,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
             k=args.k,
             write=not args.no_write,
             router_mode=router_mode,
+            graph_boost=graph_boost,
         )
     else:
         ticket: dict[str, str] = {
@@ -57,7 +60,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
             "body": args.body or "",
             "severity": sev,
         }
-        result = orch.triage(ticket, k=args.k, router_mode=router_mode)
+        result = orch.triage(ticket, k=args.k, router_mode=router_mode, graph_boost=graph_boost)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(result["draft_md"], encoding="utf-8")
@@ -65,10 +68,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
     stats = result.get("stats", {})
     violations = 0 if result.get("draft_ok") else 1
     print(
-        (
-            "severity={sev} score={ok} violations={violations} "
-            "snippets={k} min_dist={d}"
-        ).format(
+        ("severity={sev} score={ok} violations={violations} " "snippets={k} min_dist={d}").format(
             sev=sev,
             ok=stats.get("ok"),
             violations=violations,
@@ -88,15 +88,22 @@ def build_parser() -> argparse.ArgumentParser:
     t = sub.add_parser("triage", help="Run plan->retrieve->draft->verify loop")
     group = t.add_mutually_exclusive_group()
     group.add_argument("--title", help="Ticket title", required=False)
-    group.add_argument(
-        "--ticket-id", help="Existing ticket id", required=False
-    )
+    group.add_argument("--ticket-id", help="Existing ticket id", required=False)
     t.add_argument(
         "--body",
         help="Ticket body (ignored if --ticket-id)",
         required=False,
     )
     t.add_argument("--k", type=int, default=5, help="Top K snippets")
+    t.add_argument(
+        "--graph-boost",
+        type=float,
+        default=0.0,
+        help=(
+            "Graph expansion boost factor (0.0 = disabled, 0.2 = default). "
+            "Blends vector similarity with graph neighborhood weights."
+        ),
+    )
     t.add_argument(
         "--router",
         choices=["auto", "heuristic", "learned"],
@@ -139,25 +146,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["auto", "pdf", "image", "log"],
         help="Force a type or auto-detect by extension",
     )
-    ing.add_argument(
-        "--max-tokens", type=int, default=512, help="Chunk max tokens"
-    )
+    ing.add_argument("--max-tokens", type=int, default=512, help="Chunk max tokens")
     ing.add_argument(
         "--refresh-loop",
         action="store_true",
         help="Loop embedding refresh until no new rows inserted",
     )
     ing.set_defaults(func=cmd_ingest)
-    
+
     # Router training command
     router_cmd = sub.add_parser("train-router", help="Train BQML router model")
-    router_cmd.add_argument(
-        "--force",
-        action="store_true",
-        help="Recreate model even if it exists"
-    )
+    router_cmd.add_argument("--force", action="store_true", help="Recreate model even if it exists")
     router_cmd.set_defaults(func=cmd_train_router)
-    
+
     return p
 
 
@@ -180,9 +181,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     for f in _iter_files(root):
         ext = f.suffix.lower()
         recs = []
-        if args.type == "log" or (
-            args.type == "auto" and ext in {".log", ".txt"}
-        ):
+        if args.type == "log" or (args.type == "auto" and ext in {".log", ".txt"}):
             recs = parse_log(str(f))
         elif args.type in {"pdf", "image"}:
             if args.type == "pdf" and ext == ".pdf":
@@ -215,9 +214,7 @@ def cmd_ingest(args: argparse.Namespace) -> int:
         )
     docs_effective = upsert_documents(client, all_docs)
     chunks_effective = upsert_chunks(client, all_chunks)
-    emb_stats = refresh_embeddings(
-        client, loop=getattr(args, "refresh_loop", False)
-    )
+    emb_stats = refresh_embeddings(client, loop=getattr(args, "refresh_loop", False))
     msg = (
         "DocsEff:{d} ChunksEff:{c} Embeddings(batches={b} total={t} "
         "last={lb}) (total_docs={td} total_chunks={tc})"
@@ -237,23 +234,21 @@ def cmd_ingest(args: argparse.Namespace) -> int:
 def cmd_train_router(args: argparse.Namespace) -> int:
     """Train the BQML router model."""
     client = make_client()
-    
+
     # Check if model exists
     if not args.force and bq_router.check_router_model_exists(client):
         print("Router model already exists. Use --force to recreate.")
         return 0
-    
+
     print("Training router model...")
     success = bq_router.train_router(client)
-    
+
     if success:
         print("Router model training completed successfully.")
-        
+
         # Test the model
         try:
-            config, strategy = bq_router.predict_routing(
-                client, "test query", "learned"
-            )
+            config, strategy = bq_router.predict_routing(client, "test query", "learned")
             print(f"Model test successful: {strategy} strategy predicted")
             return 0
         except Exception as exc:

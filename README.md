@@ -305,6 +305,73 @@ python -m core.cli triage --title "PDF export broken" --router heuristic
 python -m core.cli triage --title "Documentation missing" --router learned
 ```
 
+### Graph-lite Expansion (Optional)
+
+Enhance retrieval quality by expanding vector search results with graph neighbors.
+
+**Build Neighbor Relationships:**
+```bash
+# Create chunk neighbor table from duplicates and co-links
+export PROJECT_ID=bq_project_northstar DATASET=demo_ai
+make build-neighbors
+```
+
+**Usage:**
+```bash
+# Enable graph expansion with default boost (0.2)
+python -m core.cli triage --title "Database error" --graph-boost 0.2
+
+# Custom boost factor and neighbor limit
+python -m core.cli triage --title "Upload failure" --graph-boost 0.3
+```
+
+**Scoring Formula:**
+- `final_score = (1 - graph_boost) * vector_score + graph_boost * neighbor_weight`
+- Default: 80% vector similarity + 20% graph boost
+- Safe fallback to vector-only if neighbor table missing
+
+### Enhanced Evaluation Metrics
+
+Comprehensive metrics for retrieval quality assessment and performance monitoring.
+
+**Core Metrics (CI-gated):**
+- `hit_rate`: Fraction of queries with at least one matching expected term
+- `mean_min_distance`: Average minimum distance across retrieved results
+- `mean_verifier_score`: Average verification score for generated playbooks
+
+**Ranking Quality Metrics (Informational):**
+- `ndcg@5`: Normalized Discounted Cumulative Gain at rank 5
+- `mrr`: Mean Reciprocal Rank of first relevant result
+- `semantic_cosine`: Cosine similarity between query and chunk embeddings
+
+**Performance Metrics (Informational):**
+- `mean_total_ms/p95_total_ms`: Timing statistics from orchestrator telemetry
+- `cost_estimates`: ML API calls and bytes processed tracking
+
+**Usage:**
+```bash
+# Run evaluation with enhanced metrics
+make eval
+cat metrics/eval_results.json | jq .aggregate
+
+# CI trend analysis with deltas
+python scripts/metrics_trend.py
+```
+
+**Metrics Output:**
+```json
+{
+  "aggregate": {
+    "hit_rate": 0.85,
+    "ndcg@5": 0.721,
+    "mrr": 0.650,
+    "semantic_cosine": {"mean": 0.823, "p25": 0.701, "p50": 0.834, "p75": 0.901},
+    "timings": {"mean_total_ms": 45.2, "p95_total_ms": 89.1},
+    "cost_estimates": {"total_ml_calls": 125, "avg_ml_calls_per_query": 6.25}
+  }
+}
+```
+
 ### Create Remote Models (Embedding + Text)
 
 You can create the two required remote Vertex models inside your dataset via BigQuery ML.
@@ -500,7 +567,7 @@ Flags: `--no-refresh-loop`, `--max-comments N`, `--k K` (pass via `python script
 
 ## Micro Eval
 
-Generates a deterministic synthetic eval set (20 items) and runs retrieval + optional verifier scoring.
+Generates a deterministic synthetic eval set (20 items) and runs comprehensive retrieval metrics.
 
 Stub (offline) or real depending on BIGQUERY_REAL (force stub with `--use-stub`).
 
@@ -513,10 +580,21 @@ Files produced:
 - `metrics/eval_set.jsonl` (input set)
 - `metrics/eval_results.json` (per-item + aggregate metrics)
 
-Metrics:
+### Metrics Definitions
+
+Core metrics (used for CI gating):
 - `hit_rate`: fraction of queries with at least one relevant chunk (substring match)
 - `mean_min_distance`: average minimum vector distance across queries
 - `mean_verifier_score`: average playbook verification success (may be null if skipped)
+- `ndcg_at_k`: normalized Discounted Cumulative Gain at k (ranking quality)
+- `mrr`: Mean Reciprocal Rank of first relevant result
+
+Extended metrics (informational):
+- `semantic_cosine`: cosine similarity between query and chunk embeddings (p25/p50/p75/mean)
+- `timings`: step timing breakdowns in milliseconds (mean/p95)
+- `cost_estimates`: ML API calls and bytes processed per query
+
+All metrics are available in `metrics/eval_results.json` under the `aggregate` key.
 
 ## Submission Notebook
 

@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean arch-verify train-router
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views build-chunk-neighbors check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean arch-verify train-router
 
 fmt:
 	ruff --fix .
@@ -72,6 +72,18 @@ create-views:
 	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
 	@[ -n "$$LOCATION" ] || (echo "Set LOCATION"; exit 1)
 	python scripts/create_views.py
+
+build-chunk-neighbors:
+	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
+	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
+	@echo "Building chunk neighbor relationships..."
+	@if [ "$$OS" = "Windows_NT" ]; then \
+	  powershell -NoProfile -Command "$$content = Get-Content sql/chunk_neighbors_ddl.sql -Raw; $$content = $$content -replace '\\$$\\{PROJECT_ID\\}', \"$$env:PROJECT_ID\"; $$content = $$content -replace '\\$$\\{DATASET\\}', \"$$env:DATASET\"; bq query --use_legacy_sql=false \"$$content\""; \
+	  powershell -NoProfile -Command "$$content = Get-Content sql/build_chunk_neighbors.sql -Raw; $$content = $$content -replace '\\$$\\{PROJECT_ID\\}', \"$$env:PROJECT_ID\"; $$content = $$content -replace '\\$$\\{DATASET\\}', \"$$env:DATASET\"; bq query --use_legacy_sql=false \"$$content\"; if ($$LASTEXITCODE -eq 0) { Write-Host '[graph] chunk_neighbors built' } else { exit $$LASTEXITCODE }"; \
+	else \
+	  sed "s/\$${PROJECT_ID}/$$PROJECT_ID/g; s/\$${DATASET}/$$DATASET/g" sql/chunk_neighbors_ddl.sql | bq query --use_legacy_sql=false; \
+	  sed "s/\$${PROJECT_ID}/$$PROJECT_ID/g; s/\$${DATASET}/$$DATASET/g" sql/build_chunk_neighbors.sql | bq query --use_legacy_sql=false && echo "[graph] chunk_neighbors built"; \
+	fi
 
 demo:
 	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
@@ -173,5 +185,15 @@ demo-assets: assets
 train-router:
 	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
 	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
-	@[ "$$BIGQUERY_REAL" = "1" ] || (echo "Set BIGQUERY_REAL=1 for live training"; exit 1)
-	python -m core.cli train-router
+	@echo "Training router model..."
+	@if [ "$$OS" = "Windows_NT" ]; then \
+	  powershell -NoProfile -Command "$$content = Get-Content sql/router_training_ddl.sql -Raw; $$content = $$content -replace '\\$$\\{PROJECT_ID\\}', \"$$env:PROJECT_ID\"; $$content = $$content -replace '\\$$\\{DATASET\\}', \"$$env:DATASET\"; bq query --use_legacy_sql=false \"$$content\""; \
+	  powershell -NoProfile -Command "$$content = Get-Content sql/router_seed_training.sql -Raw; $$content = $$content -replace '\\$$\\{PROJECT_ID\\}', \"$$env:PROJECT_ID\"; $$content = $$content -replace '\\$$\\{DATASET\\}', \"$$env:DATASET\"; bq query --use_legacy_sql=false \"$$content\" || Write-Host 'Seed data insertion completed (may have duplicates)'"; \
+	  powershell -NoProfile -Command "$$content = Get-Content sql/router_train.sql -Raw; $$content = $$content -replace '\\$$\\{PROJECT_ID\\}', \"$$env:PROJECT_ID\"; $$content = $$content -replace '\\$$\\{DATASET\\}', \"$$env:DATASET\"; bq query --use_legacy_sql=false \"$$content\"; if ($$LASTEXITCODE -eq 0) { Write-Host '[router] trained (or updated) $$env:PROJECT_ID.$$env:DATASET.router_m' } else { exit $$LASTEXITCODE }"; \
+	else \
+	  sed "s/\$${PROJECT_ID}/$$PROJECT_ID/g; s/\$${DATASET}/$$DATASET/g" sql/router_training_ddl.sql | bq query --use_legacy_sql=false; \
+	  sed "s/\$${PROJECT_ID}/$$PROJECT_ID/g; s/\$${DATASET}/$$DATASET/g" sql/router_seed_training.sql | bq query --use_legacy_sql=false || true; \
+	  sed "s/\$${PROJECT_ID}/$$PROJECT_ID/g; s/\$${DATASET}/$$DATASET/g" sql/router_train.sql | bq query --use_legacy_sql=false && echo "[router] trained (or updated) $$PROJECT_ID.$$DATASET.router_m"; \
+	fi
+
+router-train: train-router
