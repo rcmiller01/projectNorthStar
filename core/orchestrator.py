@@ -7,6 +7,7 @@ from verify import kb_verifier
 from retrieval.hybrid import vector_search
 from bq.tickets import TicketsRepo
 from bq.bigquery_client import BigQueryClientBase
+from bq import router as bq_router
 
 
 class Orchestrator:
@@ -15,11 +16,35 @@ class Orchestrator:
     def __init__(self, bq_client: BigQueryClientBase) -> None:
         self._bq = bq_client
 
-    def triage(self, ticket: Dict[str, str], k: int = 5) -> Dict[str, Any]:
+    def triage(
+        self,
+        ticket: Dict[str, str],
+        k: int = 5,
+        router_mode: str = "auto"
+    ) -> Dict[str, Any]:
         """Execute full loop, returning structured result dict."""
         plan = router.plan_mode(ticket)
         query_text = ticket.get("title") or ticket.get("body") or ""
-        snippets = vector_search(self._bq, query_text=query_text, k=k)
+        
+        # Use learned router if available, fallback to heuristics
+        routing_config, strategy_used = bq_router.predict_routing(
+            self._bq, query_text, router_mode
+        )
+        
+        # Override k and types from routing decision
+        final_k = routing_config.get("k", k)
+        types = routing_config.get("types", [])
+        
+        # Use appropriate vector search based on types
+        if types:
+            snippets = vector_search(
+                self._bq, query_text=query_text, k=final_k, types=types
+            )
+        else:
+            snippets = vector_search(
+                self._bq, query_text=query_text, k=final_k
+            )
+            
         plan_header = cast(Dict[str, Any], plan["plan_header"])
         sev = ticket.get("severity")
         if sev:
@@ -28,14 +53,25 @@ class Orchestrator:
             )
         md = kb_writer.render_agent_playbook(plan_header, snippets)
         ok, msg = kb_verifier.verify_agent_playbook(md)
-        # basic telemetry for later dashboarding
+        
+        # Enhanced telemetry including routing info
         stats = {
             "k": len(snippets),
+            "final_k": final_k,
+            "types": types,
+            "router_strategy": strategy_used,
             "min_distance": min(
                 (s.get("distance", 1.0) for s in snippets), default=1.0
             ),
             "ok": ok,
         }
+        
+        # Add routing metadata if available
+        if "prediction_meta" in routing_config:
+            stats["router_prediction"] = routing_config["prediction_meta"]
+        elif "heuristic_meta" in routing_config:
+            stats["router_heuristic"] = routing_config["heuristic_meta"]
+            
         print(f"[triage_stats] {stats}")
         return {
             "plan": plan,
@@ -53,6 +89,7 @@ class Orchestrator:
         severity: str = "Unknown",
         k: int = 5,
         write: bool = True,
+        router_mode: str = "auto",
     ) -> Dict[str, Any]:
         repo = TicketsRepo(self._bq)
         # load ticket (may be None)
@@ -78,7 +115,25 @@ class Orchestrator:
             }
         plan = router.plan_mode(ticket)
         query_text = ticket.get("title") or ticket.get("body") or ""
-        snippets = vector_search(self._bq, query_text=query_text, k=k)
+        
+        # Use learned router if available, fallback to heuristics
+        routing_config, strategy_used = bq_router.predict_routing(
+            self._bq, query_text, router_mode
+        )
+        
+        # Override k and types from routing decision
+        final_k = routing_config.get("k", k)
+        types = routing_config.get("types", [])
+        
+        # Use appropriate vector search based on types
+        if types:
+            snippets = vector_search(
+                self._bq, query_text=query_text, k=final_k, types=types
+            )
+        else:
+            snippets = vector_search(
+                self._bq, query_text=query_text, k=final_k
+            )
         plan_header = cast(Dict[str, Any], plan["plan_header"])  # type: ignore
         sev = ticket.get("severity") or severity
         if sev:
@@ -87,13 +142,24 @@ class Orchestrator:
             )
         md = kb_writer.render_agent_playbook(plan_header, snippets)
         ok, msg = kb_verifier.verify_agent_playbook(md)
+        
+        # Enhanced telemetry including routing info
         stats = {
             "k": len(snippets),
+            "final_k": final_k,
+            "types": types,
+            "router_strategy": strategy_used,
             "min_distance": min(
                 (s.get("distance", 1.0) for s in snippets), default=1.0
             ),
             "ok": ok,
         }
+        
+        # Add routing metadata if available
+        if "prediction_meta" in routing_config:
+            stats["router_prediction"] = routing_config["prediction_meta"]
+        elif "heuristic_meta" in routing_config:
+            stats["router_heuristic"] = routing_config["heuristic_meta"]
         links_written = 0
         if write and ticket_id and snippets:
             for sn in snippets:

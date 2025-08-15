@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 
 from bq import make_client
+from bq import router as bq_router
 from ingest import extract_text, parse_log, to_chunks
 from bq.load import upsert_documents, upsert_chunks
 from bq.refresh import refresh_embeddings
@@ -39,6 +40,8 @@ def cmd_triage(args: argparse.Namespace) -> int:
     client = make_client()
     orch = Orchestrator(client)
     sev = _norm_severity(getattr(args, "severity", None))
+    router_mode = getattr(args, "router", "auto")
+    
     if getattr(args, "ticket_id", None):
         result = orch.triage_ticket(
             ticket_id=args.ticket_id,
@@ -46,6 +49,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
             severity=sev,
             k=args.k,
             write=not args.no_write,
+            router_mode=router_mode,
         )
     else:
         ticket: dict[str, str] = {
@@ -53,7 +57,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
             "body": args.body or "",
             "severity": sev,
         }
-        result = orch.triage(ticket, k=args.k)
+        result = orch.triage(ticket, k=args.k, router_mode=router_mode)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(result["draft_md"], encoding="utf-8")
@@ -93,6 +97,15 @@ def build_parser() -> argparse.ArgumentParser:
         required=False,
     )
     t.add_argument("--k", type=int, default=5, help="Top K snippets")
+    t.add_argument(
+        "--router",
+        choices=["auto", "heuristic", "learned"],
+        default="auto",
+        help=(
+            "Router mode: auto (learned if available, else heuristic), "
+            "heuristic (rule-based only), learned (BQML only)"
+        ),
+    )
     t.add_argument(
         "--max-comments",
         type=int,
@@ -135,6 +148,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Loop embedding refresh until no new rows inserted",
     )
     ing.set_defaults(func=cmd_ingest)
+    
+    # Router training command
+    router_cmd = sub.add_parser("train-router", help="Train BQML router model")
+    router_cmd.add_argument(
+        "--force",
+        action="store_true",
+        help="Recreate model even if it exists"
+    )
+    router_cmd.set_defaults(func=cmd_train_router)
+    
     return p
 
 
@@ -209,6 +232,36 @@ def cmd_ingest(args: argparse.Namespace) -> int:
     )
     print(msg)
     return 0
+
+
+def cmd_train_router(args: argparse.Namespace) -> int:
+    """Train the BQML router model."""
+    client = make_client()
+    
+    # Check if model exists
+    if not args.force and bq_router.check_router_model_exists(client):
+        print("Router model already exists. Use --force to recreate.")
+        return 0
+    
+    print("Training router model...")
+    success = bq_router.train_router(client)
+    
+    if success:
+        print("Router model training completed successfully.")
+        
+        # Test the model
+        try:
+            config, strategy = bq_router.predict_routing(
+                client, "test query", "learned"
+            )
+            print(f"Model test successful: {strategy} strategy predicted")
+            return 0
+        except Exception as exc:
+            print(f"Model test failed: {exc}")
+            return 1
+    else:
+        print("Router model training failed.")
+        return 1
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover

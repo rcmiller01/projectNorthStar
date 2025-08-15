@@ -12,14 +12,23 @@ def vector_search(
     query_text: str,
     k: int = 5,
     types: Optional[List[str]] = None,
-) -> List[Dict[str, Any]]:  # Backwards compatibility (demo table)
-    # Fall back to old table; type filtering unsupported here.
-    return _normalize_rows(
-        client.run_sql_template(
-            "vector_search.sql",
-            {"query_text": query_text, "top_k": _clamp_k(k)},
-        ),
-    )
+) -> List[Dict[str, Any]]:
+    """Vector search with optional type filtering.
+    
+    If types are specified, uses chunk_vector_search for filtering.
+    Otherwise falls back to simple vector_search for backwards compatibility.
+    """
+    if types:
+        # Use advanced chunk search with type filtering
+        return chunk_vector_search(client, query_text, k, types)
+    else:
+        # Fall back to old table for backwards compatibility
+        return _normalize_rows(
+            client.run_sql_template(
+                "vector_search.sql",
+                {"query_text": query_text, "top_k": _clamp_k(k)},
+            ),
+        )
 
 
 def chunk_vector_search(

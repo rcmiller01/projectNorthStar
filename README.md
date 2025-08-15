@@ -212,6 +212,18 @@ Run offline (stub client):
 python -m core.cli triage --title "Login 500" --body "after reset" --severity P2 --out out/plan.md
 ```
 
+Run with intelligent routing:
+```
+# Auto mode: learned routing if model exists, else heuristic fallback
+python -m core.cli triage --title "PDF export fails" --body "error message" --router auto --out out/plan.md
+
+# Heuristic mode: rule-based routing only
+python -m core.cli triage --title "Connection timeout" --body "database error" --router heuristic --out out/plan.md
+
+# Learned mode: BigQuery ML model only (requires training)
+python -m core.cli triage --title "Document upload" --body "image processing" --router learned --out out/plan.md
+```
+
 Run live (BigQuery):
 ```
 set BIGQUERY_REAL=1               # Windows PowerShell example
@@ -256,6 +268,42 @@ Key mapping:
 - Draft: `experts/kb_writer.py`
 - Verify: `verify/kb_verifier.py`
 - Writebacks: `ticket_chunk_links`, `resolutions` tables
+
+### Smart Routing with BigQuery ML
+
+The system includes an intelligent router that adapts retrieval strategy based on query characteristics.
+
+**Router Training:**
+```bash
+# Train BQML logistic regression model for routing
+export PROJECT_ID=bq_project_northstar DATASET=demo_ai BIGQUERY_REAL=1
+make train-router
+
+# Or directly
+python -m core.cli train-router
+```
+
+**Router Modes:**
+- `auto` (default): Use learned model if available, fallback to heuristics
+- `heuristic`: Rule-based routing using keyword matching
+- `learned`: BigQuery ML model only (fails if model missing)
+
+**Routing Strategies:**
+- `logs_only`: Types=['log'], k=8 - for error messages, stack traces, timeouts
+- `pdf_image`: Types=['pdf','image','image_ocr'], k=6 - for documents, diagrams, manuals
+- `mixed`: Types=[], k=10 - for complex queries needing all content types
+
+**Example Usage:**
+```bash
+# Auto routing (recommended)
+python -m core.cli triage --title "Database timeout error" --router auto
+
+# Force heuristic routing
+python -m core.cli triage --title "PDF export broken" --router heuristic
+
+# Use learned model (requires training)
+python -m core.cli triage --title "Documentation missing" --router learned
+```
 
 ### Create Remote Models (Embedding + Text)
 

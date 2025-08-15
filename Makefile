@@ -1,4 +1,4 @@
-.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean arch-verify
+.PHONY: fmt lint test smoke notebook-validate smoke-live preflight preflight-models create-remote-models destroy-remote-models ingest-samples dashboard create-views check setup-dev pre-commit-all setup-all demo eval sweep-secrets sweep-secrets-strict public-sweep release-dry-run release assets demo-assets which-mmdc arch-png arch-svg arch arch-clean arch-verify train-router
 
 fmt:
 	ruff --fix .
@@ -169,3 +169,9 @@ demo-assets: assets
 	fi
 	@$(MAKE) demo
 	@echo "[demo-assets] assets + end-to-end demo complete"
+
+train-router:
+	@[ -n "$$PROJECT_ID" ] || (echo "Set PROJECT_ID"; exit 1)
+	@[ -n "$$DATASET" ] || (echo "Set DATASET"; exit 1)
+	@[ "$$BIGQUERY_REAL" = "1" ] || (echo "Set BIGQUERY_REAL=1 for live training"; exit 1)
+	python -m core.cli train-router
