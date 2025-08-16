@@ -9,25 +9,6 @@ __pycache__/
 venv/
 env/
 secret-scan.txt
-secret-scan.json
 # keep docs images (no ignore rule) so dashboard.png can be committed
 # temp arch verification directory
 .tmp_arch/
-
-# Temporary test files and data checking scripts
-check_*.py
-test_*.py
-debug_*.py
-create_sample_data.py
-create_*_views.py
-dashboard_summary.py
-*_working_views.py
-
-# BigQuery service account keys
-*.json
-!package*.json
-!*.template.json
-
-# Environment-specific files
-.env.*
-!.env.template

@@ -17,18 +17,15 @@ Usage:
 from __future__ import annotations
 import os
 import sys
+import sys
 from pathlib import Path
 from typing import List, Tuple
 
-# Add the project root to the Python path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Load environment configuration
+from bq.bigquery_client import make_client
 from config import load_env
-load_env()
-
-from src.bq.bigquery_client import make_client
 
 TEMPLATES: List[Tuple[str, str]] = [
     ("views_common_issues.sql", "view_common_issues"),
@@ -64,6 +61,9 @@ def _dataset_exists(client, project: str, dataset: str) -> bool:
 
 
 def main() -> int:
+    # Load environment variables first
+    load_env()
+    
     project = _check_env("PROJECT_ID")
     dataset = _check_env("DATASET")
     _check_env("LOCATION")  # only for user signalling; not used directly here

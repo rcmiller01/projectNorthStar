@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Test which text models are available in us-east1."""
 
-import os
 from config import load_env
 from google.cloud import bigquery
 
@@ -10,7 +9,7 @@ load_env()
 def test_models_in_east1():
     """Test different model endpoints in us-east1."""
     client = bigquery.Client()
-    project_id = os.getenv("PROJECT_ID", "your-project-id")
+    project_id = "gleaming-bus-468914-a6"
     
     # Models to test in us-east1
     models_to_test = [
@@ -87,7 +86,6 @@ def main():
     print("🔍 Testing Text Models Available in us-east1")
     print("=" * 50)
     
-    project_id = os.getenv("PROJECT_ID", "your-project-id")
     working_models = test_models_in_east1()
     
     print("\n" + "=" * 50)
@@ -97,8 +95,8 @@ def main():
             print(f"✅ {model}")
         
         print(f"\n🚀 You can now use any of these models with:")
-        print(f"   Connection: {project_id}.us-east1.vertex-ai-east1")
-        print(f"   Dataset: {project_id}.demo_ai_east1")
+        print(f"   Connection: gleaming-bus-468914-a6.us-east1.vertex-ai-east1")
+        print(f"   Dataset: gleaming-bus-468914-a6.demo_ai_east1")
         
     else:
         print("❌ No working text models found in us-east1")

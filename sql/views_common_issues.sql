@@ -5,7 +5,7 @@ CREATE OR REPLACE VIEW `${PROJECT_ID}.${DATASET}.view_common_issues` AS
 WITH base AS (
   SELECT
     chunk_id,
-    text,
+    content AS text,
     meta,
     COALESCE(
       SAFE.PARSE_TIMESTAMP('%Y-%m-%dT%H:%M:%E*S%Ez', JSON_VALUE(meta, '$.ingested_at')),

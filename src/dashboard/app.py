@@ -2,27 +2,15 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict
-import sys
-import os
 
 import streamlit as st
 
-# Add the project root to the Python path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+try:
+    from src.bq.bigquery_client import make_client  # reuse existing client factory
+except Exception:  # pragma: no cover
+    from bq.bigquery_client import make_client  # fallback if path differs
 
-# Now import from the root level
-from config import load_env
-from google.cloud import bigquery
-
-# Load environment
-load_env()
-
-
-def make_client():
-    """Create BigQuery client with loaded config."""
-    return bigquery.Client()
-
+from pipeline import config as cfg
 
 SQL_DIR = Path("sql")
 VIEW_FILES = [
@@ -33,24 +21,12 @@ VIEW_FILES = [
 
 
 def ensure_views(client) -> None:
-    """Best-effort create/replace views (idempotent) - only in real BigQuery mode."""
-    # Only try to create views if we're in real BigQuery mode and client supports it
-    if os.getenv("BIGQUERY_REAL") != "1":
-        st.info("📊 Running in stub mode - views not created. Set BIGQUERY_REAL=1 for live data.")
-        return
-    
-    if not hasattr(client, 'run_sql_template'):
-        st.warning("⚠️ Client doesn't support view creation. Run `make create-views` manually if needed.")
-        return
-    
-    try:
-        for f in VIEW_FILES:
-            try:
-                client.run_sql_template(f, {})
-            except Exception as exc:  # pragma: no cover - non-fatal
-                st.warning(f"Failed to create view {f}: {exc}")
-    except Exception as e:
-        st.warning(f"Views not created at startup: {e}. Run `make create-views` if you need live data.")
+    """Best-effort create/replace views (idempotent)."""
+    for f in VIEW_FILES:
+        try:
+            client.run_sql_template(f, {})
+        except Exception as exc:  # pragma: no cover - non-fatal
+            st.warning(f"Failed to create view {f}: {exc}")
 
 
 def mask_text(s: str) -> str:
@@ -84,7 +60,8 @@ def main():  # pragma: no cover - UI function
     ensure_views(client)
 
     # Sidebar filters
-    default_end = datetime.now()
+    from datetime import timezone
+    default_end = datetime.now(timezone.utc)
     default_start = default_end - timedelta(days=30)
     st.sidebar.header("Filters")
     start_date = st.sidebar.date_input("Start", default_start.date())
@@ -97,10 +74,7 @@ def main():  # pragma: no cover - UI function
     end_ts = f"TIMESTAMP('{end_date} 23:59:59 UTC')"
     sev_in = ",".join(f"'" + s + "'" for s in sel_sev) or "'__none__'"
 
-    # Get config values
-    project_id = os.getenv('PROJECT_ID', 'your-project-id')
-    dataset = os.getenv('DATASET', 'demo_ai')
-    dataset_fq = f"{project_id}.{dataset}"
+    dataset_fq = f"{cfg.PROJECT_ID}.{cfg.DATASET}"
 
     col1, col2 = st.columns(2)
     with col1:
@@ -123,7 +97,7 @@ def main():  # pragma: no cover - UI function
         st.subheader("Severity Trends (Weekly)")
         sql_sev = f"""
         SELECT week, severity, count FROM `{dataset_fq}.view_issues_by_severity`
-        WHERE week BETWEEN DATE({start_ts}) AND DATE({end_ts})
+        WHERE week BETWEEN DATE_TRUNC({start_ts}, WEEK) AND DATE_TRUNC({end_ts}, WEEK)
           AND severity IN ({sev_in})
         ORDER BY week, severity
         """

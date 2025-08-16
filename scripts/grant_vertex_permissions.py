@@ -20,7 +20,7 @@ except Exception as e:
 # Load environment configuration
 load_env()
 
-PROJECT = os.getenv("PROJECT_ID") or "your-project-id"
+PROJECT = os.getenv("PROJECT_ID") or "gleaming-bus-468914-a6"
 # This is the service account from the error message
 SERVICE_ACCOUNT = "bqcx-111337406730-7dcz@gcp-sa-bigquery-condel.iam.gserviceaccount.com"
 ROLE = "roles/aiplatform.user"

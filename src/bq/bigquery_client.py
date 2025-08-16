@@ -6,8 +6,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 import importlib
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
+
+# Add project root to path for config import  
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 # Import config module for authentication handling
 from config import load_env
@@ -31,9 +36,94 @@ class StubClient(BigQueryClientBase):
     def run_sql_template(
         self, name: str, params: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
-        # Support inline raw SQL passthrough (no-op, returns empty)
+        # Support inline raw SQL passthrough with sample data for dashboard
         if "raw_sql" in params:
+            sql = params["raw_sql"].lower()
+            
+            # Sample data for common issues view
+            if "view_common_issues" in sql:
+                return [
+                    {
+                        "issue_fingerprint": "auth_timeout_error", 
+                        "count": 15,
+                        "issue_example": "Authentication service timeout after 30 seconds",
+                        "last_seen": "2025-08-15 10:30:00"
+                    },
+                    {
+                        "issue_fingerprint": "database_connection_pool", 
+                        "count": 8,
+                        "issue_example": "Database connection pool exhausted",
+                        "last_seen": "2025-08-15 09:15:00"
+                    },
+                    {
+                        "issue_fingerprint": "ssl_cert_expiring", 
+                        "count": 3,
+                        "issue_example": "SSL certificate expires in 2 days",
+                        "last_seen": "2025-08-14 16:45:00"
+                    }
+                ]
+            
+            # Sample data for severity trends view 
+            elif "view_issues_by_severity" in sql:
+                return [
+                    {"week": "2025-08-05T00:00:00Z", "severity": "P0", "count": 2},
+                    {"week": "2025-08-05T00:00:00Z", "severity": "P1", "count": 5},
+                    {"week": "2025-08-05T00:00:00Z", "severity": "P2", "count": 8},
+                    {"week": "2025-08-05T00:00:00Z", "severity": "P3", "count": 12},
+                    {"week": "2025-08-12T00:00:00Z", "severity": "P0", "count": 1},
+                    {"week": "2025-08-12T00:00:00Z", "severity": "P1", "count": 3},
+                    {"week": "2025-08-12T00:00:00Z", "severity": "P2", "count": 6},
+                    {"week": "2025-08-12T00:00:00Z", "severity": "P3", "count": 8}
+                ]
+            
+            # Sample data for duplicate chunks view
+            elif "view_duplicate_chunks" in sql:
+                return [
+                    {
+                        "group_id": "grp_001", 
+                        "member_chunk_id": "chunk_1",
+                        "distance": 0.05,
+                        "size": 3
+                    },
+                    {
+                        "group_id": "grp_001", 
+                        "member_chunk_id": "chunk_2",
+                        "distance": 0.08,
+                        "size": 3
+                    },
+                    {
+                        "group_id": "grp_001", 
+                        "member_chunk_id": "chunk_3",
+                        "distance": 0.12,
+                        "size": 3
+                    },
+                    {
+                        "group_id": "grp_002", 
+                        "member_chunk_id": "chunk_4",
+                        "distance": 0.03,
+                        "size": 2
+                    },
+                    {
+                        "group_id": "grp_002", 
+                        "member_chunk_id": "chunk_5",
+                        "distance": 0.07,
+                        "size": 2
+                    }
+                ]
+            
+            # Sample data for chunk text queries
+            elif "chunks" in sql and "chunk_id in" in sql:
+                return [
+                    {"chunk_id": "chunk_1", "text": "Database timeout error occurred during user authentication"},
+                    {"chunk_id": "chunk_2", "text": "Database connection timed out after 30 seconds"},
+                    {"chunk_id": "chunk_3", "text": "DB timeout during query execution"},
+                    {"chunk_id": "chunk_4", "text": "Authentication failed for user login"},
+                    {"chunk_id": "chunk_5", "text": "Auth service rejected login request"}
+                ]
+            
+            # Default empty for other raw SQL queries
             return []
+            
         if name == "vector_search.sql":
             q = params.get("query_text", "")
             return [
