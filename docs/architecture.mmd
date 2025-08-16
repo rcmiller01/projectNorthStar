@@ -9,38 +9,38 @@ flowchart LR
 
   %% Local / CLI
   subgraph L[Local / CLI]
-    A1[core.cli\n-- ingest | triage]:::local
-    A2[ingest/\n pdf|image(OCR)|log + chunker]:::local
-    A3[retrieval.hybrid\n(vector search + type filters)]:::local
+    A1[core.cli\n-- ingest, triage]:::local
+    A2[ingest/\n pdf, image OCR, log + chunker]:::local
+    A3[retrieval.hybrid\nvector search + type filters]:::local
     A4[experts.kb_writer\n→ playbook.md]:::local
-    A5[verify.kb_verifier\n(safety rules) 🔒]:::local
-    A6[dashboard/app.py\n(Streamlit, read‑only)]:::local
+    A5[verify.kb_verifier\nsafety rules 🔒]:::local
+    A6[dashboard/app.py\nStreamlit, read-only]:::local
   end
 
   %% BigQuery
-  subgraph B[BigQuery (${PROJECT}.${DATASET})]
-    B0[(create_remote_models\nidempotent) ⚑]:::model
-    B1[(documents)]:::store
-    B2[(chunks)]:::store
-    B3[(chunks_emb)]:::store
-    B4[(tickets)]:::store
-    B5[(ticket_events)]:::store
-    B6[(ticket_attachments)]:::store
-    B7[(ticket_chunk_links)]:::store
-    B8[(resolutions)]:::store
+  subgraph B[BigQuery - PROJECT.DATASET]
+    B0[create_remote_models\nidempotent ⚑]:::model
+    B1[documents]:::store
+    B2[chunks]:::store
+    B3[chunks_emb]:::store
+    B4[tickets]:::store
+    B5[ticket_events]:::store
+    B6[ticket_attachments]:::store
+    B7[ticket_chunk_links]:::store
+    B8[resolutions]:::store
 
-    V1[[view_common_issues]]:::view
-    V2[[view_issues_by_severity]]:::view
-    V3[[view_duplicate_chunks]]:::view
+    V1[view_common_issues]:::view
+    V2[view_issues_by_severity]:::view
+    V3[view_duplicate_chunks]:::view
 
-    M1{{embed_model\nML.GENERATE_EMBEDDING}}:::model
-    M2{{text_model\nML.GENERATE_TEXT}}:::model
+    M1[embed_model\nML.GENERATE_EMBEDDING]:::model
+    M2[text_model\nML.GENERATE_TEXT]:::model
   end
 
   %% CI / Release
   subgraph C[CI / Release]
     C1[lint + tests]:::ci
-    C2[micro‑eval\nhit@k, distance, verifier]:::ci
+    C2[micro-eval\nhit at k, distance, verifier]:::ci
     C3[secret/public sweeps]:::ci
     C4[release tag + changelog]:::ci
   end

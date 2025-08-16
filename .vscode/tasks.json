@@ -4,8 +4,28 @@
     {
       "label": "Build architecture (PNG+SVG)",
       "type": "shell",
-      "command": "bash",
-      "args": ["-lc", "make arch"],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-Command",
+          "mmdc -i docs\\architecture.mmd -o docs\\architecture.png -b transparent; mmdc -i docs\\architecture.mmd -o docs\\architecture.svg; Write-Host 'Architecture diagrams generated from docs/architecture.mmd'"
+        ]
+      },
+      "linux": {
+        "command": "bash",
+        "args": ["-lc", "make arch"]
+      },
+      "osx": {
+        "command": "bash", 
+        "args": ["-lc", "make arch"]
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
       "problemMatcher": []
     }
   ]
