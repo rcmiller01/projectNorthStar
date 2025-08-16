@@ -70,6 +70,9 @@ def test_sample_data():
     
     try:
         # Import and run sample data creation
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'utils'))
         import create_sample_data
         total_created = create_sample_data.create_sample_files()
         print(f"✅ Sample data files created: {total_created} issues")
